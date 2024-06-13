@@ -1,0 +1,19 @@
+# a = "test1"
+# c = """test3"""
+# d = '''test4'''
+e = """test5"""""
+
+# str = "I'm a string. \"You/ can quote me\". Name\tJos\U000000E9;\tLocation\tSF."
+
+[table]
+# [[test3]]
+# b = 'test2'
+# table.key = -1_234_567 # float = inf
+# bool = true # "key1  " = "value1"
+# date = 1996-04-08
+# [[test3]]
+# yep = [ "a", "b", [ 'nested', 'outer' ] ]
+# d = "test4"
+# multiline = """ test test2\""" """
+# test = { a = { c = 1 }, b = 2 }
+# _c = 3
