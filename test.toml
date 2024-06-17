@@ -1,19 +1,18 @@
-# a = "test1"
-# c = """test3"""
-# d = '''test4'''
-e = """test5"""""
+integer = 5
+num = 123.5
+infinity = inf
+# \n are interpreted, unicode chars need chcp 65001 & stuff
+multiline_str = """
+a
+b c \u2230
+"""
+a.b = "dotted.tables"
+c = { d = "inline tables" }
+[e.f]
+g = "useful tables"
+[[h.i]]
+j = "lists of tables"
+k.l.m.n = 2024-06-07T20:00:00.12+02:00
 
-# str = "I'm a string. \"You/ can quote me\". Name\tJos\U000000E9;\tLocation\tSF."
-
-[table]
-# [[test3]]
-# b = 'test2'
-# table.key = -1_234_567 # float = inf
-# bool = true # "key1  " = "value1"
-# date = 1996-04-08
-# [[test3]]
-# yep = [ "a", "b", [ 'nested', 'outer' ] ]
-# d = "test4"
-# multiline = """ test test2\""" """
-# test = { a = { c = 1 }, b = 2 }
-# _c = 3
+[o]
+p = [ 1, [ 2, 3 ], 4]

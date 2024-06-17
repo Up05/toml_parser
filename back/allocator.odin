@@ -267,6 +267,7 @@ tracking_allocator_print_results :: proc(t: ^Tracking_Allocator, type: Result_Ty
 		work = work[len(t.allocation_map):]
 		li: int
 		for _, leak in t.allocation_map {
+			if leak.size < 50 do continue // Ulti: I just don't care about 13 bytes being wasted...
 			defer li+=1
 
 			fmt.eprintf("\x1b[31m%v leaked %m\x1b[0m\n", leak.location, leak.size)

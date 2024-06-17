@@ -1,30 +1,30 @@
-package main
+package toml
 
 import "core:c"
-import "core:os"
-import "core:slice"
 import "core:strings"
 import "core:unicode/utf8"
 
 SEPERATOR_SYMBOLS :: " \r\n\t"
-SPECIAL_SYMBOLS :: "=.,[]{}" // special symbols
+SPECIAL_SYMBOLS :: "=.,[]{}"
 
-tokenize :: proc(file: string) -> [dynamic]string {
-    blob, ok_file_read := os.read_entire_file_from_filename(file)
-    if !ok_file_read do errf("Couldn't read file at path: \"%s\"\n", file)
+// "it" is actually "file data"
+tokenize :: proc(it: string) -> [dynamic]string {
 
     tokens: [dynamic]string
-    it := string(blob) // iterator
+    it := it // iterator
 
-    // * _.M A I N  L O O P._
     for len(it) > 0 {
 
         // i1 -- start of whitespace, i2 -- end of continuous whitespace
         i1, i2 := find_last_connected(it, {' ', '\r', '\n', '\t'})
         i0 := strings.index_any(it, SPECIAL_SYMBOLS) // start of any special symbols/operators
 
-        if i1 == -1 {
-            append_elem(&tokens, it)
+        if i1 == -1 { // A bit of a hack... The last* token:
+            i3 := strings.index_any(it, " \r\n\t")
+            if i0 != 0 {
+                append_elem(&tokens, it[:i0])
+                if i3 != -1 do append_elem(&tokens, it[i0:i3])
+            } else if i3 != -1 do append_elem(&tokens, it[:i3])
             break
         }
 
@@ -32,30 +32,24 @@ tokenize :: proc(file: string) -> [dynamic]string {
         it, found_quotes = handle_quotes(&tokens, it)
         if found_quotes do continue
 
-
-        if i0 > 0 && i0 < i1 {     // for symbols immediately after key name/other strings e.g.: '=', '{' or '.'
-            rune_before_symbol, size_of_rune := utf8.decode_rune_in_string(
-                it[i0 - 1:],
-            ) // both numbers and symbols here will only be ascii, so who cares, I guess...
-            // if rune_before_symbol < '0' || rune_before_symbol > '9' { // TODO: WHY?
+        // # For symbols immediately after key name/other strings e.g.: '=', '{' or '.'
+        if i0 > 0 && i0 < i1 { 
             append_elem(&tokens, it[:i0])
             it = it[i0:]
             continue
-            // }
         }
-        found_symbol: bool // for symbols, seperated by space from other non-symbols
+        // # For symbols, seperated by space from other non-symbols
+        found_symbol: bool 
         it, found_symbol = handle_special_symbols(&tokens, it)
         if found_symbol do continue
 
         // ############################################################
-
         append_elem(&tokens, it[:i1])
-        if strings.contains_any(it[i1:i2], "\r\n") do append_elem(&tokens, "\n") // for comments
+        for _ in 0..<strings.count(it[i1:i2], "\r\n") do append_elem(&tokens, "\n") // for comments
         it = it[i2:]
     }
 
     // ############################################################
-
     append(&tokens, "EOF")
 
     // ############################################################
@@ -77,23 +71,24 @@ tokenize :: proc(file: string) -> [dynamic]string {
                     break
                 }
             }
-        case "'''", "\"\"\"":
-            // TODO: should this be here???
-            errf("Tokenizer", "%s is unpaired!", tok)
         }
     }
 
     // for debugging!
-    for token in tokens {
-        if token == "\n" do logln()
-        else do logf("%s\t", token)
+    when false {
+        for token, i in tokens {
+            if i > 0 && tokens[i - 1] == "\n" && token == "\n" do continue
+            if token == "\n" do logln()
+            else do logf("%s\t", token)
+        }
+        logln()
     }
-    logln()
 
 
     return tokens
 }
 
+@(private="file")
 handle_special_symbols :: proc(
     out: ^[dynamic]string,
     it: string,
@@ -108,6 +103,7 @@ handle_special_symbols :: proc(
     return it, false
 }
 
+@(private="file")
 handle_quotes :: proc(
     out: ^[dynamic]string,
     it: string,
@@ -146,8 +142,8 @@ handle_quotes :: proc(
     return it, false
 }
 
-
 // ascii*: string[i] == r when i in [start, end)
+@(private="file")
 find_last_connected :: proc(str: string, r: []rune) -> (start, end: int) {
     was_equal := false
     for ch, i in str {
@@ -163,6 +159,7 @@ find_last_connected :: proc(str: string, r: []rune) -> (start, end: int) {
 
 // If not found, returns c.INT32_MIN! So you can just check if result < 0.  
 // Technically, multi_line is for whether to get last(true) or first(false) of multiple connected quotation marks: """ """"" --> ""
+@(private="file")
 index_all :: proc(
     str: string,
     a: string,
@@ -186,4 +183,3 @@ index_all :: proc(
     return int(c.INT32_MIN)
 }
 // This should be specific enough to where it doesn't need to be in misc. Misc should, technically, have as little as possible.
-

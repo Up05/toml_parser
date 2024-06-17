@@ -1,4 +1,4 @@
-package main
+package toml
 
 import "core:fmt"
 import "core:os"
