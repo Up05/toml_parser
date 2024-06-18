@@ -13,9 +13,13 @@ assert_trace :: proc(expr: bool) {
         logln("Runtime assertion failed:")
         trace := back.trace()
         lines, err := back.lines(trace.trace[3:trace.len - 2])
-        assert(err == nil)
-        back.print(lines)
-        os.exit(1)
+        if(err == nil) {
+            back.print(lines)
+            os.exit(1)
+        } else {
+            logln("Please compile the program with '-debug' flag to see stack traces!")
+            os.exit(1)
+        }
     }
 }
 
