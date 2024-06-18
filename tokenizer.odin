@@ -21,7 +21,7 @@ tokenize :: proc(it: string) -> [dynamic]string {
 
         if i1 == -1 { // A bit of a hack... The last* token:
             i3 := strings.index_any(it, " \r\n\t")
-            if i0 != 0 {
+            if i0 != -1 {
                 append_elem(&tokens, it[:i0])
                 if i3 != -1 do append_elem(&tokens, it[i0:i3])
             } else if i3 != -1 do append_elem(&tokens, it[:i3])

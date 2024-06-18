@@ -232,7 +232,7 @@ entype :: proc(
             ) {if nested_bracket_count > 0 {nested_bracket_count -= 1} else do break}
             if starts_with(elem, "EOF") && nested_bracket_count > 0 {
                 err.type = .Missing_Bracket
-                return err
+                return
             }
 
             if nested_bracket_count <= 0 && elem != "," do element_count += 1
