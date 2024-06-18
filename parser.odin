@@ -65,7 +65,7 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
                 }
                 use_temp_section = true
             }
-            assert(i + 2 < len(raw_tokens))
+            assert_trace(i + 2 < len(raw_tokens))
             nextnext := raw_tokens[i + 2]
 
             if nextnext == "{" { // This is so trash & it repeats lower in the file
@@ -106,9 +106,8 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
                 to_skip += skip
             }
 
-        case starts_with(token, "[") && starts_with(next, "["):
-            assert(prev == "\n")
-            assert(i + 3 < len(raw_tokens))
+        case starts_with(token, "[") && starts_with(next, "[") && prev == "\n":
+            assert_trace(i + 3 < len(raw_tokens))
             nextnext := raw_tokens[i + 2]
 
             if raw_tokens[i + 3] == "." {
@@ -139,10 +138,8 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
             }
 
             to_skip += 4
-        case starts_with(token, "["):
-            assert(prev == "\n")
-            assert(i + 2 < len(raw_tokens))
-
+        case starts_with(token, "[") && prev == "\n":
+            assert_trace(i + 2 < len(raw_tokens))
             if type_of(section[next]) == ^Table {
                 err.type = .Key_Already_Exists
                 err.more = next
@@ -237,7 +234,7 @@ entype :: proc(
 
             if nested_bracket_count <= 0 && elem != "," do element_count += 1
         }
-        assert(nested_bracket_count == 0)
+        assert_trace(nested_bracket_count == 0)
         arr := new([dynamic]Type)
         arr^ = make_dynamic_array_len_cap([dynamic]Type, 0, element_count)
         to_skip_nested: int
@@ -374,7 +371,7 @@ handle_inline_table :: proc(section: ^Table, raw_tokens: [] string, level := 0) 
             skip += 1
             raw_tokens = raw_tokens[skip:]
             to_skip += skip
-        // Handles normal values (not tables)
+        // # Handles normal values (not tables)
         } else {
             val: Type;
             val, skip, err = entype(raw_tokens[0], raw_tokens[1:])

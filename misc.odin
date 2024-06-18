@@ -17,7 +17,7 @@ assert_trace :: proc(expr: bool) {
             back.print(lines)
             os.exit(1)
         } else {
-            logln("Please compile the program with '-debug' flag to see stack traces!")
+            logln("\tPlease compile the program with '-debug' flag to see stack traces!")
             os.exit(1)
         }
     }
