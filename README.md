@@ -11,6 +11,7 @@ This should be more or less a fully spec-compliant odin parser (however, not wri
 
 import "core:fmt"
 import "toml"
+import "toml/dates"
 
 main :: proc() {
   using toml
