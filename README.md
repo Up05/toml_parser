@@ -1,4 +1,4 @@
-# A TOML parser made for Odin
+# A TOML parser for Odin
 
 *Now we have parser2: electric boogaloo*
 
