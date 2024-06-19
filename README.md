@@ -1,6 +1,6 @@
 # A TOML parser made for Odin
 
-*I'm currently rewriting the parser, I should be done soon. However the existing code should work fine enough and I have no reason to touch the interface.*
+*Now we have parser2, electric boogaloo*
 
 This should be more or less a fully spec-compliant odin parser (however, not writer/formatter).
 
