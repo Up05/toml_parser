@@ -1,3 +1,4 @@
+//+build darwin
 package toml
 
 import "dates" // I have since learned that odin has "core:time::rfc3339_to_components"
@@ -22,7 +23,6 @@ Type :: union {
 parse :: proc(data: string, original_file: string, allocator := context.allocator) -> (tokens: ^Table, err: Error) {
     context.allocator = allocator
     raw_tokens := tokenize(data)
-    // defer delete_dynamic_array(raw_tokens)
     err_v := validate(raw_tokens, original_file)
     if err_v.type != .None do return tokens, err_v
 
@@ -389,12 +389,12 @@ handle_inline_table :: proc(section: ^Table, raw_tokens: [] string, level := 0) 
 
 walk_down_table :: proc(section: ^^Table, name: string) -> (err: Error) {
     #partial switch t in section^^[name] {
-        case ^Table: // do nothing
-        case nil: section^^[name] = new(Table)
-        case:
-            err.type = .Key_Already_Exists
-            err.more = name
-            return
+    case ^Table: // do nothing
+    case nil: section^^[name] = new(Table)
+    case:
+        err.type = .Key_Already_Exists
+        err.more = name
+        return
     }
     section^ = section^^[name].(^Table)
     return

@@ -55,11 +55,15 @@ get_panic :: proc($T: typeid, section: ^Table, path: ..string) -> T
 // Currently(2024-06-17), Odin hangs if you simply fmt.print Table
 print_table :: proc(section: ^Table, level := 0){
     log("{ ")
+    i := 0
     for k, v in section {
         log(k, "= ") 
         print_value(v, level)
+        if i != len(section) - 1 do log(", ")
+        else do log(" ")
+        i += 1
     }
-    log("}, ")
+    log("}")
     if level == 0 do logln()
 }
 
@@ -70,11 +74,15 @@ print_value :: proc(v: Type, level := 0){
         print_table(t, level + 1)
     case ^[dynamic] Type:
         log("[ ")
-        for e in t do print_value(e, level)
-        log("] ")
+        for e, i in t {
+            print_value(e, level)
+            if i != len(t) - 1 do log(", ")
+            else do log(" ")
+        }
+        log("]")
     case string:
-        logf("%q, ", v)
+        logf("%q", v)
     case:
-        log(v, ", ", sep = "")
+        log(v)
     }
 }

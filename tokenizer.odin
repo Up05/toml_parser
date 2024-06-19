@@ -19,9 +19,10 @@ tokenize :: proc(it: string) -> [dynamic]string {
         i1, i2 := find_last_connected(it, {' ', '\r', '\n', '\t'})
         i0 := strings.index_any(it, SPECIAL_SYMBOLS) // start of any special symbols/operators
 
-        if i1 == -1 { // A bit of a hack... The last* token:
+
+        if i1 == -1 && i0 == -1 { // A bit of a hack... The last* token:
             i3 := strings.index_any(it, " \r\n\t")
-            if i0 != -1 {
+            if i0 != -1 { // TODO: Obv, can't ever execute, (above if)
                 append_elem(&tokens, it[:i0])
                 if i3 != -1 do append_elem(&tokens, it[i0:i3])
             } else if i3 != -1 do append_elem(&tokens, it[:i3])
@@ -33,7 +34,7 @@ tokenize :: proc(it: string) -> [dynamic]string {
         if found_quotes do continue
 
         // # For symbols immediately after key name/other strings e.g.: '=', '{' or '.'
-        if i0 > 0 && i0 < i1 { 
+        if i0 > 0 && ( i1 == -1 || i0 < i1 ) { 
             append_elem(&tokens, it[:i0])
             it = it[i0:]
             continue
@@ -44,6 +45,7 @@ tokenize :: proc(it: string) -> [dynamic]string {
         if found_symbol do continue
 
         // ############################################################
+        if i1 == -1 do continue
         append_elem(&tokens, it[:i1])
         for _ in 0..<strings.count(it[i1:i2], "\r\n") do append_elem(&tokens, "\n") // for comments
         it = it[i2:]
