@@ -67,7 +67,7 @@ k.l.m.n = 2024-06-07T20:00:00.12+02:00
 [o]
 p = [ 1, [ 2, 3 ], 4]
 ```
-# Idiom idea
+# Design/Idiom idea
 
 Although, you can simply use `or_else` or just `val, ok := get(...`. I propose, that one could: 
   1. load a configuration at runtime, by using `parse_file`
@@ -75,3 +75,9 @@ Although, you can simply use `or_else` or just `val, ok := get(...`. I propose, 
   3. first get a value from the runtime config by using `get` the, via `or_else`, fallback to the compile-time config and use `get_panic`, if the user-provided configuration has an error.
 
 I would also then advise against using `get` for the compile-time version, since `get_panic` functions in a similar vein to a unit test (which I totally have in this project btw, just thought I'd mention, that I DO have that. I do!..)
+
+# Todo
+
+- Cleanup asserts, unify them & get proper messages for them
+- Make an error for badly read file, currently it kind of sucks...
+- Maybe, have `print_tokens()` & `print_file_data()` ¯\_(ツ)_/¯
