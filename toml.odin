@@ -2,6 +2,7 @@ package toml
 
 import "core:os"
 import "base:intrinsics"
+import "dates"
 
 // Parses the file. You can use print_error(err) for error messages.
 parse_file :: proc(filename: string, allocator := context.allocator) -> (section: ^Table, err: Error) {
@@ -52,7 +53,7 @@ get_panic :: proc($T: typeid, section: ^Table, path: ..string) -> T
     return section[last].(T)
 }
 
-// Currently(2024-06-17), Odin hangs if you simply fmt.print Table
+// Currently(2024-06-__), Odin hangs if you simply fmt.print Table
 print_table :: proc(section: ^Table, level := 0){
     log("{ ")
     i := 0
@@ -86,3 +87,35 @@ print_value :: proc(v: Type, level := 0){
         log(v)
     }
 }
+
+// Here lies the code for LSP:
+get_i64    :: proc(section: ^Table, path: ..string) -> 
+            (val: i64, ok: bool) { return get(i64, section, ..path) }
+get_f64    :: proc(section: ^Table, path: ..string) -> 
+            (val: f64, ok: bool) { return get(f64, section, ..path) }
+get_bool   :: proc(section: ^Table, path: ..string) -> 
+            (val: bool, ok: bool) { return get(bool, section, ..path) }
+get_string :: proc(section: ^Table, path: ..string) -> 
+            (val: string, ok: bool) { return get(string, section, ..path) }
+get_date   :: proc(section: ^Table, path: ..string) -> 
+            (val: dates.Date, ok: bool) { return get(dates.Date, section, ..path) }
+get_list   :: proc(section: ^Table, path: ..string) -> 
+            (val: ^List, ok: bool) { return get(^List, section, ..path) } 
+get_table  :: proc(section: ^Table, path: ..string) -> 
+            (val: ^Table, ok: bool) { return get(^Table, section, ..path) }
+
+get_i64_panic    :: proc(section: ^Table, path: ..string) -> 
+            i64 { return get_panic(i64, section, ..path) }
+get_f64_panic    :: proc(section: ^Table, path: ..string) -> 
+            f64 { return get_panic(f64, section, ..path) }
+get_bool_panic   :: proc(section: ^Table, path: ..string) -> 
+            bool { return get_panic(bool, section, ..path) }
+get_string_panic :: proc(section: ^Table, path: ..string) -> 
+            string { return get_panic(string, section, ..path) }
+get_date_panic   :: proc(section: ^Table, path: ..string) -> 
+            dates.Date { return get_panic(dates.Date, section, ..path) }
+get_list_panic   :: proc(section: ^Table, path: ..string) -> 
+            ^List { return get_panic(^List, section, ..path) } 
+get_table_panic  :: proc(section: ^Table, path: ..string) -> 
+            ^Table { return get_panic(^Table, section, ..path) }
+
