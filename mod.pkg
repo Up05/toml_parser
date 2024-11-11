@@ -5,5 +5,5 @@
 	"readme": "README.md",
 	"license": "MIT",
 	"keywords": ["TOML", "parser"],
-	"dependencies": {laytan/odin-ini-parser, Up05/odin-RFC-3339-date-parser}
+	"dependencies": {laytan/back, Up05/odin-RFC-3339-date-parser}
 }
