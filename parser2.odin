@@ -182,7 +182,7 @@ parse_date :: proc(tokens: [] string) -> (date: dates.Date, to_skip: int, err: E
 
 @private
 parse_list :: proc(tokens: [] string) -> (list: ^List, to_skip: int, err: Error) {
-    assert_trace(tokens[0] == "[")
+    assertf(tokens[0] == "[", "Tried to parse a list i.e.: '[...]', but got '%s' as first token!", tokens[0])
     
     back :: proc(arr: [dynamic] ^List) -> ^List {
         return arr[len(arr) - 1]
@@ -233,7 +233,7 @@ parse_list :: proc(tokens: [] string) -> (list: ^List, to_skip: int, err: Error)
 
 @private
 parse_inline_table :: proc(tokens: [] string) -> (section: ^Table, to_skip: int, err: Error) {
-    assert_trace(tokens[0] == "{")
+    assertf(tokens[0] == "{", "Tried to parse inline table, i.e.: '{...}', but got '%s' as first token...", tokens[0])
     tokens := tokens[1:]; to_skip += 1 
     section = new(Table)
 
@@ -285,7 +285,7 @@ put :: proc(table: ^Table, tokens: [] string) -> (to_skip: int, err: Error) {
     to_skip += skip_w
     
     to_skip += 1 // This is necessary for '='
-    assert_trace(tokens[1] == "=")
+    assertf(tokens[1] == "=", "When parsing assignment, i.e.: 'a = 5', expected '=' but got '%s'!", tokens[1])
 
     val, skip, err_entype := entype(tokens[2:])
     if err_entype.type != .None {

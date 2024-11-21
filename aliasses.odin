@@ -12,6 +12,8 @@ warn    :: fmt.print
 warnf   :: fmt.printf
 warnln  :: fmt.println
 
+assertf :: fmt.assertf
+
 errf :: proc(section: string, format: string, args: ..any, _flush := true) {
     fmt.eprintf(fmt = strings.concatenate({ "[", strings.to_upper(section), " ERROR] ", format }), args = args, flush = _flush)
     os.exit(1)

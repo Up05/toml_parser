@@ -1,18 +1,11 @@
-integer = 5
-num = 123.5
-infinity = inf
-# \n are interpreted, unicode chars need chcp 65001 & stuff
-multiline_str = """
-a
-b c \u2230
-"""
-a.b = "dotted.tables"
-c = { d = "inline tables" }
-[e.f]
-g = "useful tables"
-[[h.i]]
-j = "lists of tables"
-k.l.m.n = 2024-06-07T20:00:00.12+02:00
+[[people]]
+first_name = "Bruce"
+last_name = "Springsteen"
 
-[o]
-p = [ 1, [ 2, 3 ], 4]
+[[people]]
+first_name = "Eric"
+last_name = "Clapton"
+
+[[people]]
+first_name = "Bob"
+last_name = "Seger"

@@ -1,0 +1,21 @@
+# example.toml
+
+integer = 5
+num = 123.5
+infinity = inf
+# unicode chars need chcp 65001 & stuff
+multiline_str = """
+a
+b c \u2230
+"""
+a.b = "dotted.tables"
+c = { d = "inline tables" }
+[e.f]
+g = "useful tables"
+[[h.i]]
+j = "lists of tables"
+[letsnot]
+k.l.m.n = 2024-06-07T20:00:00.12+02:00
+
+[o]
+p = [ 1, [ 2, 3 ], 4]

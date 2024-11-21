@@ -6,23 +6,6 @@ import "core:strings"
 import "core:unicode/utf16"
 import "core:unicode/utf8"
 
-import "back"
-
-assert_trace :: proc(expr: bool) {
-    if !expr {
-        logln("Runtime assertion failed:")
-        trace := back.trace()
-        lines, err := back.lines(trace.trace[3:trace.len - 2])
-        if(err == nil) {
-            back.print(lines)
-            os.exit(1)
-        } else {
-            logln("\tPlease compile the program with '-debug' flag to see stack traces!")
-            os.exit(1)
-        }
-    }
-}
-
 // when literal is true, function JUST returns str
 @(private)
 cleanup_backslashes :: proc(str: string, literal := false) -> string {
@@ -102,7 +85,7 @@ equal_any :: proc(a: rune, b: []rune) -> bool {
 
 @(private)
 between_any :: proc(a: rune, b: ..rune) -> bool {
-    assert_trace(len(b) % 2 == 0)
+    assert(len(b) % 2 == 0)
     for i := 0; i < len(b); i += 2 {
         if a >= b[i] && a <= b[i + 1] do return true
     }

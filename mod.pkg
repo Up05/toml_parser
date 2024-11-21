@@ -1,9 +1,9 @@
 {
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "TOML file parser",
 	"url": "https://github.com/Up05/toml_parser",
 	"readme": "README.md",
 	"license": "MIT",
 	"keywords": ["TOML", "parser"],
-	"dependencies": {laytan/back, Up05/odin-RFC-3339-date-parser}
+	"dependencies": { Up05/odin-RFC-3339-date-parser }
 }

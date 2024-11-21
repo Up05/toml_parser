@@ -65,7 +65,7 @@ print_error :: proc(err: Error) -> (fatal: bool) {
 @(private="file")
 fmt_err :: proc(err: Error, message: string) {
     fmt, err_aloc := strings.concatenate({"[ERROR] %s:%d ", message, "! %s\n"})
-    assert_trace(err_aloc == nil)
+    assert(err_aloc == nil, "Ran out of memory...")
     logf(fmt, err.file, err.line + 1, err.more) // Lines are not 0-indexed (to my knowledge)
 }
 

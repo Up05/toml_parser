@@ -45,11 +45,11 @@ get_panic :: proc($T: typeid, section: ^Table, path: ..string) -> T
     assert(len(path) > 0, "You must specify at least one path str in toml.fetch_panic()!")
     section := section
     for dir in path[:len(path) - 1] {
-        assert_trace(dir in section)
+        assertf(dir in section, "Missing key: '%s' in table '%v'!", path, section^)
         section = section[dir].(^Table)
     }
     last := path[len(path) - 1]
-    assert_trace(last in section)
+    assertf(last in section, "Missing key: '%s' in table '%v'!", last, section^)
     return section[last].(T)
 }
 
