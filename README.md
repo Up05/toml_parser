@@ -70,7 +70,9 @@ p = [ 1, [ 2, 3 ], 4]
 # Installation 
 
 Simply 
-```git clone github.com/Up05/toml_parser toml```
+```sh
+git clone github.com/Up05/toml_parser toml
+```
 into your project's subdirectory.
 
 And then put `import "toml"` in your odin code.
