@@ -69,8 +69,8 @@ p = [ 1, [ 2, 3 ], 4]
 ```
 # Installation 
 
-Simply 
-```sh
+Simply,
+```nix
 git clone github.com/Up05/toml_parser toml
 ```
 into your project's subdirectory.
