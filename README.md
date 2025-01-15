@@ -67,6 +67,25 @@ k.l.m.n = 2024-06-07T20:00:00.12+02:00
 [o]
 p = [ 1, [ 2, 3 ], 4]
 ```
+# Installation 
+
+Simply 
+```git clone github.com/Up05/toml_parser toml```
+into your project's subdirectory.
+
+And then put `import "toml"` in your odin code.
+
+The directory structure should look like:
+```
+your_project_folder
+    toml_folder
+        parser2.odin
+        ...
+    other_libraries
+    source_code.odin
+    ...
+```
+
 # Design/Idiom idea
 
 Although, you can simply use `or_else` or just `val, ok := get(...`. I propose, that one could: 
