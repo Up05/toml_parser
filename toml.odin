@@ -23,9 +23,13 @@ parse_data :: proc(data: []u8, original_filename := "untitled data", allocator :
 // Retrieves and type checks the value at path. The last element of path is the actual key.
 //section may be any Table.
 get :: proc($T: typeid, section: ^Table, path: ..string) -> (val: T, ok: bool)
-    where intrinsics.type_is_variant_of(Type, T) 
+    where intrinsics.type_is_variant_of(Type, T)
 {
     assert(len(path) > 0, "You must specify at least one path str in toml.fetch()!")
+	if section == nil {
+		return val, false
+	}
+
     section := section
     for dir in path[:len(path) - 1] {
         if dir in section {
