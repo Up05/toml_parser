@@ -1,6 +1,9 @@
 package toml
 
+import "base:runtime"
+import "core:fmt"
 import "core:strings"
+
 ErrorType :: enum {
     // TOKENIZER ERRORS:
     // VALIDATOR ERRORS:
@@ -27,46 +30,70 @@ Error :: struct {
     line: int,
     more: string // I am such a poet!
 }
+
 // This may also be a warning!
 print_error :: proc(err: Error) -> (fatal: bool) {
-    switch err.type {
-    case .None:
-        return false
-    case .Missing_Key:
-        fmt_err(err, "Expected the name of a key before '='")
-    case .Bad_Name:
-        fmt_err(err, "Bad key/table name found before, please eiter use quotes, or stick to 'A-Za-z0-9_-'")
-    case .Missing_Value:
-        fmt_err(err, "Expected a value after '='")
-    case .Bad_Value:
-        fmt_err(err, "Bad value found after '='")
-    case .Mismatched_Brackets:
-        fmt_err(err, "Mismatched brackets found, e.g.: [{{]}}")
-    case .Missing_Bracket: 
-        fmt_err(err, "Too few/too many brackets found")
-    case .Missing_Curly_Bracket:
-        fmt_err(err, "Too few/too many curly brackets found")
-    case .Unexpected_Equals_In_Array:
-        fmt_err(err, "Unexpected equals in an array found")
-    case .Key_Already_Exists:
-        fmt_err(err, "That key/section already exists")
-    case .Bad_Date:
-        fmt_err(err, "Failed to parse a date")
-    case .Bad_Integer:
-        fmt_err(err, "Failed to parse an interger")
-    case .Bad_Float:
-        fmt_err(err, "Failed to parse a floating-point number (may be invalid value)")
-    case .Missing_Newline:
-        fmt_err(err, "A new line is missing between two key-value pairs")
+    message: string
+    message, fatal = format_error(err)
+    if message != "" {
+        logf("[ERROR] %s", message) // Lines are not 0-indexed (to my knowledge)
+        delete(message, context.temp_allocator)
     }
-    return true
+    return fatal
 }
 
-@(private="file")
-fmt_err :: proc(err: Error, message: string) {
-    fmt, err_aloc := strings.concatenate({"[ERROR] %s:%d ", message, "! %s\n"})
-    assert(err_aloc == nil, "Ran out of memory...")
-    logf(fmt, err.file, err.line + 1, err.more) // Lines are not 0-indexed (to my knowledge)
+format_error :: proc(
+    err: Error,
+    allocator := context.temp_allocator,
+) -> (
+    message: string,
+    fatal: bool,
+) {
+    switch err.type {
+    case .None:
+        return "", false
+    case .Missing_Key:
+        message = fmt_err(err, "Expected the name of a key before '='", allocator)
+    case .Bad_Name:
+        message = fmt_err(
+            err,
+            "Bad key/table name found before, please eiter use quotes, or stick to 'A-Za-z0-9_-'",
+            allocator,
+        )
+    case .Missing_Value:
+        message = fmt_err(err, "Expected a value after '='", allocator)
+    case .Bad_Value:
+        message = fmt_err(err, "Bad value found after '='", allocator)
+    case .Mismatched_Brackets:
+        message = fmt_err(err, "Mismatched brackets found, e.g.: [{{]}}", allocator)
+    case .Missing_Bracket:
+        message = fmt_err(err, "Too few/too many brackets found", allocator)
+    case .Missing_Curly_Bracket:
+        message = fmt_err(err, "Too few/too many curly brackets found", allocator)
+    case .Unexpected_Equals_In_Array:
+        message = fmt_err(err, "Unexpected equals in an array found", allocator)
+    case .Key_Already_Exists:
+        message = fmt_err(err, "That key/section already exists", allocator)
+    case .Bad_Date:
+        message = fmt_err(err, "Failed to parse a date", allocator)
+    case .Bad_Integer:
+        message = fmt_err(err, "Failed to parse an interger", allocator)
+    case .Bad_Float:
+        message = fmt_err(
+            err,
+            "Failed to parse a floating-point number (may be invalid value)",
+            allocator,
+        )
+    case .Missing_Newline:
+        message = fmt_err(err, "A new line is missing between two key-value pairs", allocator)
+    }
+
+    return message, true
+}
+
+@(private = "file")
+fmt_err :: proc(err: Error, message: string, allocator: runtime.Allocator) -> string {
+    return fmt.aprintf("%s:%d %s! %s\n", err.file, err.line + 1, message, err.more)
 }
 
 validate :: proc(raw_tokens: [dynamic]string, filename: string) -> (err: Error) {
