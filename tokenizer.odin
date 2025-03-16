@@ -47,7 +47,7 @@ tokenize :: proc(it: string) -> [dynamic]string {
         // ############################################################
         if i1 == -1 do continue
         append_elem(&tokens, it[:i1])
-        for _ in 0..<strings.count(it[i1:i2], "\r\n") do append_elem(&tokens, "\n") // for comments
+        for _ in 0..<count_newlines(it[i1:i2]) do append_elem(&tokens, "\n") // for comments
         it = it[i2:]
     }
 

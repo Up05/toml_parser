@@ -122,3 +122,14 @@ starts_with :: proc(a, b: string) -> bool {
     return len(a) >= len(b) && a[:len(b)] == b
 }
 
+@(private)
+count_newlines :: proc(s: string) -> int {
+    count: int
+    for r, i in s {
+        count += auto_cast r == '\r'
+        count += auto_cast r == '\n'
+        count -= auto_cast starts_with(s[i:], "\r\n")
+    }
+    return count
+}
+
