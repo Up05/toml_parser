@@ -317,7 +317,8 @@ walk_down_to :: proc(section: ^^Table, tokens: [] string, stop: string, listify 
     for t, i in tokens {
         to_skip += 1
 
-        if tokens[i + 1] == stop {
+        // random bug fix
+        if i + 1 >= len(tokens) || tokens[i + 1] == stop {
             return i, to_skip, err
         } 
 

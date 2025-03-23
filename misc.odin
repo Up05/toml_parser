@@ -68,6 +68,11 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
                 write_byte(&b, '\b')
             case '\\':
                 write_byte(&b, '\\')
+            case '"':
+                write_byte(&b, '"')
+            case '\'':
+                write_byte(&b, '\'')
+
             }
         } else if r != '\\' do write_rune(&b, r)
 

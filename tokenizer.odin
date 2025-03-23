@@ -121,7 +121,8 @@ handle_quotes :: proc(
         q1 = it[:3]
         is_literal = q1 == "'''"
         q2 = index_all(it[3:], q1, !is_literal, true) + 3
-
+        
+        if q2 <= 0 do exit(1)
         assert(q2 > 0, "Pairing of: ''' or \"\"\" was not found") // this just doesn't work ever :(
         append_elem(out, cleanup_backslashes(it[:q2 + 3], is_literal))
         return it[q2 + 3:], true
@@ -133,6 +134,7 @@ handle_quotes :: proc(
         q2 = index_all(it[1:], q1, !is_literal) + 1
         nl := strings.index_any(it[1:], "\r\n") + 1
         // why is the nl <= 0 instead of nl < 0? Well... ¯\_(ツ)_/¯
+        if nl > 0 && nl <= q2 do exit(1)
         assert(
             nl <= 0 || nl > q2,
             "Found a quote without a pair! (Use ''' or \"\"\" for multiline quotes or \\ to escape a quote)",
