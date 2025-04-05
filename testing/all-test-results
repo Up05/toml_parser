@@ -1,0 +1,5024 @@
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/array/array[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       ints = [1, 2, 3, ]
+       floats = [1.1, 2.1, 3.1]
+       strings = ["a", "b", "c"]
+       dates = [
+         1987-07-05T17:45:00Z,
+         1979-05-27T07:32:00Z,
+         2006-06-01T11:00:00Z,
+       ]
+       comments = [
+                1,
+                2, #this is ok
+       ]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/array/mixed-string-table[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       contributors = [
+         "Foo Bar <foo@example.com>",
+         { name = "Baz Qux", email = "bazqux@example.com", url = "https://example.com/bazqux" }
+       ]
+
+       # Start with a table as the first element. This tests a case that some libraries
+       # might have where they will check if the first entry is a table/map/hash/assoc
+       # array and then encode it as a table array. This was a reasonable thing to do
+       # before TOML 1.0 since arrays could only contain one type, but now it's no
+       # longer.
+       mixed = [{k="a"}, "b", 1]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/array/nested-inline-table[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       a = [ { b = {} } ]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/array/open-parent-table[0m
+[1;38;5;0;48;5;224m [0m    Key "parent-table" (type "table"):
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any(nil)
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any
+
+[1m     input sent to parser-cmd:[0m
+       [[parent-table.arr]]
+       [[parent-table.arr]]
+       [parent-table]
+       not-arr = 1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "parent-table": [{
+           "not-arr": {"type": "integer", "value": "1"},
+           "arr": [
+             {},
+             {}
+           ]
+         }]
+       }
+
+[1m     want:[0m
+       {
+           "parent-table": {
+               "not-arr": {"type": "integer", "value": "1"},
+               "arr": [
+                   {},
+                   {}
+               ]
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/array/table-array-string-backslash[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       foo = [ { bar="\"{{baz}}\""} ]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/comment/after-literal-no-ws[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       inf=inf#infinity
+       nan=nan#not a number
+       true=true#true
+       false=false#false
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(389:5) runtime assertion: No.  (No NaN)
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/comment/everywhere[0m
+[1;38;5;0;48;5;224m [0m    Key "group.d" is not "date-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"date-local", "value":"1979-05-27"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"1979-05-27T00:00:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       # Top comment.
+         # Top comment.
+       # Top comment.
+
+       # [no-extraneous-groups-please]
+
+       [group] # Comment
+       answer = 42 # Comment
+       # no-extraneous-keys-please = 999
+       # Inbetween comment.
+       more = [ # Comment
+         # What about multiple # comments?
+         # Can you handle it?
+         #
+                 # Evil.
+       # Evil.
+         42, 42, # Comments within arrays are fun.
+         # What about multiple # comments?
+         # Can you handle it?
+         #
+                 # Evil.
+       # Evil.
+       # ] Did I fool you?
+       ] # Hopefully not.
+
+       # Make sure the space between the datetime and "#" isn't lexed.
+       dt = 1979-05-27T07:32:12-07:00  # c
+       d = 1979-05-27 # Comment
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "group": {
+           "answer": {"type": "integer", "value": "42"},
+           "d":      {"type": "datetime", "value": "1979-05-27T00:00:00Z"},
+           "dt":     {"type": "datetime", "value": "1979-05-27T07:32:12-07:00"},
+           "more": [
+             {"type": "integer", "value": "42"},
+             {"type": "integer", "value": "42"}
+           ]
+         }
+       }
+
+[1m     want:[0m
+       {
+           "group": {
+               "answer": {"type": "integer", "value": "42"},
+               "d":      {"type": "date-local", "value": "1979-05-27"},
+               "dt":     {"type": "datetime", "value": "1979-05-27T07:32:12-07:00"},
+               "more": [
+                   {"type": "integer", "value": "42"},
+                   {"type": "integer", "value": "42"}
+               ]
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/comment/tricky[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       [section]#attached comment
+       #[notsection]
+       one = "11"#cmt
+       two = "22#"
+       three = '#'
+
+       four = """# no comment
+       # nor this
+       #also not comment"""#is_comment
+
+       five = 5.5#66
+       six = 6#7
+       8 = "eight"
+       #nine = 99
+       ten = 10e2#1
+       eleven = 1.11e1#23
+
+       ["hash#tag"]
+       "#!" = "hash bang"
+       arr3 = [ "#", '#', """###""" ]
+       arr4 = [ 1,# 9, 9,
+       2#,9
+       ,#9
+       3#]
+       ,4]
+       arr5 = [[[[#["#"],
+       ["#"]]]]#]
+       ]
+       tbl1 = { "#" = '}#'}#}}
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/datetime/edge[0m
+[1;38;5;0;48;5;224m [0m    Key "first-date" is not "date-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"date-local", "value":"0001-01-01"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"0001-01-01T00:00:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       first-offset = 0001-01-01 00:00:00Z
+       first-local  = 0001-01-01 00:00:00
+       first-date   = 0001-01-01
+
+       last-offset = 9999-12-31 23:59:59Z
+       last-local  = 9999-12-31 23:59:59
+       last-date   = 9999-12-31
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "first-date":   {"type": "datetime", "value": "0001-01-01T00:00:00Z"},
+         "first-local":  {"type": "datetime", "value": "0001-01-01T00:00:00Z"},
+         "first-offset": {"type": "datetime", "value": "0001-01-01T00:00:00Z"},
+         "last-date":    {"type": "datetime", "value": "9999-12-31T00:00:00Z"},
+         "last-local":   {"type": "datetime", "value": "9999-12-31T23:59:59Z"},
+         "last-offset":  {"type": "datetime", "value": "9999-12-31T23:59:59Z"}
+       }
+
+[1m     want:[0m
+       {
+           "first-date":   {"type": "date-local", "value": "0001-01-01"},
+           "first-local":  {"type": "datetime-local", "value": "0001-01-01T00:00:00"},
+           "first-offset": {"type": "datetime", "value": "0001-01-01T00:00:00Z"},
+           "last-date":    {"type": "date-local", "value": "9999-12-31"},
+           "last-local":   {"type": "datetime-local", "value": "9999-12-31T23:59:59"},
+           "last-offset":  {"type": "datetime", "value": "9999-12-31T23:59:59Z"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/datetime/leap-year[0m
+[1;38;5;0;48;5;224m [0m    Key "2000-date" is not "date-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"date-local", "value":"2000-02-29"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"2000-02-29T00:00:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       2000-datetime       = 2000-02-29 15:15:15Z
+       2000-datetime-local = 2000-02-29 15:15:15
+       2000-date           = 2000-02-29
+
+       2024-datetime       = 2024-02-29 15:15:15Z
+       2024-datetime-local = 2024-02-29 15:15:15
+       2024-date           = 2024-02-29
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "2000-date":           {"type": "datetime", "value": "2000-02-29T00:00:00Z"},
+         "2000-datetime":       {"type": "datetime", "value": "2000-02-29T15:15:15Z"},
+         "2000-datetime-local": {"type": "datetime", "value": "2000-02-29T15:15:15Z"},
+         "2024-date":           {"type": "datetime", "value": "2024-02-29T00:00:00Z"},
+         "2024-datetime":       {"type": "datetime", "value": "2024-02-29T15:15:15Z"},
+         "2024-datetime-local": {"type": "datetime", "value": "2024-02-29T15:15:15Z"}
+       }
+
+[1m     want:[0m
+       {
+           "2000-date":           {"type": "date-local", "value": "2000-02-29"},
+           "2000-datetime":       {"type": "datetime", "value": "2000-02-29T15:15:15Z"},
+           "2000-datetime-local": {"type": "datetime-local", "value": "2000-02-29T15:15:15"},
+           "2024-date":           {"type": "date-local", "value": "2024-02-29"},
+           "2024-datetime":       {"type": "datetime", "value": "2024-02-29T15:15:15Z"},
+           "2024-datetime-local": {"type": "datetime-local", "value": "2024-02-29T15:15:15"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/datetime/local[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       local = 1987-07-05T17:45:00
+       milli = 1977-12-21T10:32:00.555
+       space = 1987-07-05 17:45:00
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '1987-07-05'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/datetime/local-date[0m
+[1;38;5;0;48;5;224m [0m    Key "bestdayever" is not "date-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"date-local", "value":"1987-07-05"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"1987-07-05T00:00:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       bestdayever = 1987-07-05
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "bestdayever": {"type": "datetime", "value": "1987-07-05T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       {
+           "bestdayever": {"type": "date-local", "value": "1987-07-05"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/datetime/local-time[0m
+[1;38;5;0;48;5;224m [0m    Key "besttimeever" is not "time-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"time-local", "value":"17:45:00"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"0000-00-00T17:45:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       besttimeever = 17:45:00
+       milliseconds = 10:32:00.555
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "besttimeever": {"type": "datetime", "value": "0000-00-00T17:45:00Z"},
+         "milliseconds": {"type": "datetime", "value": "0000-00-00T10:32:01Z"}
+       }
+
+[1m     want:[0m
+       {
+           "besttimeever": {"type": "time-local", "value": "17:45:00"},
+           "milliseconds": {"type": "time-local", "value": "10:32:00.555"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/datetime/milliseconds[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       utc1  = 1987-07-05T17:45:56.123Z
+       utc2  = 1987-07-05T17:45:56.6Z
+       wita1 = 1987-07-05T17:45:56.123+08:00
+       wita2 = 1987-07-05T17:45:56.6+08:00
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '1987-07-05T17:45:56'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/float/inf-and-nan[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       # We don't encode +nan and -nan back with the signs; many languages don't
+       # support a sign on NaN (it doesn't really make much sense).
+       nan = nan
+       nan_neg = -nan
+       nan_plus = +nan
+       infinity = inf
+       infinity_neg = -inf
+       infinity_plus = +inf
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(389:5) runtime assertion: No.  (No NaN)
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/array[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       arr = [ {'a'= 1}, {'a'= 2} ]
+
+       people = [{first_name = "Bruce", last_name = "Springsteen"},
+                 {first_name = "Eric", last_name = "Clapton"},
+                 {first_name = "Bob", last_name = "Seger"}]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/array-values[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       # "No newlines are allowed between the curly braces unless they are valid within
+       # a value"
+
+       a = { a = [
+       ]}
+
+       b = { a = [
+       		1,
+       		2,
+       	], b = [
+       		3,
+       		4,
+       	]}
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/empty[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       empty1 = {}
+       empty2 = { }
+       empty_in_array = [ { not_empty = 1 }, {} ]
+       empty_in_array2 = [{},{not_empty=1}]
+       many_empty = [{},{},{}]
+       nested_empty = {"empty"={}}
+       with_cmt ={            }#nothing here
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/inline-table[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       name        = { first = "Tom", last = "Preston-Werner" }
+       point       = { x = 1, y = 2 }
+       simple      = { a = 1 }
+       str-key     = { "a" = 1 }
+       table-array = [{ "a" = 1 }, { "b" = 2 }]
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'x'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/key-dotted-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       a = {   a.b  =  1   }
+       b = {   "a"."b"  =  1   }
+       c = {   a   .   b  =  1   }
+       d = {   'a'   .   "b"  =  1   }
+       e = {a.b=1}
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '{'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/key-dotted-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       [[arr]]
+       t = {a.b=1}
+       T = {a.b=1}
+
+       [[arr]]
+       t = {a.b=2}
+       T = {a.b=2}
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '{'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/key-dotted-5[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       arr-1 = [{a.b = 1}]
+       arr-2 = ["str", {a.b = 1}]
+
+       arr-3 = [{a.b = 1}, {a.b = 2}]
+       arr-4 = ["str", {a.b = 1}, {a.b = 2}]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/key-dotted-7[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       arr = [
+       	{a.b = [{c.d = 1}]}
+       ]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/multiline[0m
+[1;38;5;0;48;5;224m [0m    Values for key "tbl_multiline.b" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     multiline
+[1;38;5;0;48;5;224m [0m
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    multiline
+
+[1m     input sent to parser-cmd:[0m
+       tbl_multiline = { a = 1, b = """
+       multiline
+       """, c = """and yet
+       another line""", d = 4 }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "tbl_multiline": {
+           "a": {"type": "integer", "value": "1"},
+           "b": {"type": "string", "value": "\nmultiline\n"},
+           "c": {"type": "string", "value": "and yet\nanother line"},
+           "d": {"type": "integer", "value": "4"}
+         }
+       }
+
+[1m     want:[0m
+       {
+           "tbl_multiline": {
+               "a": {"type": "integer", "value": "1"},
+               "b": {"type": "string", "value": "multiline\n"},
+               "c": {"type": "string", "value": "and yet\nanother line"},
+               "d": {"type": "integer", "value": "4"}
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/nest[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       tbl_tbl_empty = { tbl_0 = {} }
+       tbl_tbl_val   = { tbl_1 = { one = 1 } }
+       tbl_arr_tbl   = { arr_tbl = [ { one = 1 } ] }
+       arr_tbl_tbl   = [ { tbl = { one = 1 } } ]
+
+       # Array-of-array-of-table is interesting because it can only
+       # be represented in inline form.
+       arr_arr_tbl_empty = [ [ {} ] ]
+       arr_arr_tbl_val = [ [ { one = 1 } ] ]
+       arr_arr_tbls  = [ [ { one = 1 }, { two = 2 } ] ]
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '{'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/inline-table/spaces[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       # https://github.com/toml-lang/toml-test/issues/146
+       clap-1 = { version = "4"  , features = ["derive", "cargo"] }
+
+       # Contains some literal tabs!
+       clap-2 = { version = "4"	   	,	  	features = [   "derive" 	  ,  	  "cargo"   ]   , nest   =   {  	  "a"   =   'x'  , 	  'b'   = [ 1.5    ,   9.0  ]  }  }
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/integer/float64-max[0m
+[1;38;5;0;48;5;224m [0m    Key "max_int" is not "integer" but "float":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"integer", "value":"9007199254740991"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"float", "value":"9.007199254740991e+15"}
+
+[1m     input sent to parser-cmd:[0m
+       # Maximum and minimum safe float64 natural numbers. Mainly here for
+       # -int-as-float.
+       max_int =  9_007_199_254_740_991
+       min_int = -9_007_199_254_740_991
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "max_int": {"type": "float", "value": "9.007199254740991e+15"},
+         "min_int": {"type": "float", "value": "-9.007199254740991e+15"}
+       }
+
+[1m     want:[0m
+       {
+           "max_int": {"type": "integer", "value": "9007199254740991"},
+           "min_int": {"type": "integer", "value": "-9007199254740991"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/integer/integer[0m
+[1;38;5;0;48;5;224m [0m    Key "neganswer" is not "integer" but "float":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"integer", "value":"-42"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"float", "value":"-42"}
+
+[1m     input sent to parser-cmd:[0m
+       answer = 42
+       posanswer = +42
+       neganswer = -42
+       zero = 0
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "answer":    {"type": "integer", "value": "42"},
+         "neganswer": {"type": "float", "value": "-42"},
+         "posanswer": {"type": "float", "value": "42"},
+         "zero":      {"type": "integer", "value": "0"}
+       }
+
+[1m     want:[0m
+       {
+           "answer":    {"type": "integer", "value": "42"},
+           "neganswer": {"type": "integer", "value": "-42"},
+           "posanswer": {"type": "integer", "value": "42"},
+           "zero":      {"type": "integer", "value": "0"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/integer/literals[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       bin1 = 0b11010110
+       bin2 = 0b1_0_1
+
+       oct1 = 0o01234567
+       oct2 = 0o755
+       oct3 = 0o7_6_5
+
+       hex1 = 0xDEADBEEF
+       hex2 = 0xdeadbeef
+       hex3 = 0xdead_beef
+       hex4 = 0x00987
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/integer/long[0m
+[1;38;5;0;48;5;224m [0m    Key "int64-max-neg" is not "integer" but "float":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"integer", "value":"-9223372036854775808"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"float", "value":"-1.976262583364986e-308"}
+
+[1m     input sent to parser-cmd:[0m
+       # int64 "should" be supported, but is not mandatory. It's fine to skip this
+       # test.
+       int64-max     = 9223372036854775807
+       int64-max-neg = -9223372036854775808
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "int64-max":     {"type": "integer", "value": "9223372036854775807"},
+         "int64-max-neg": {"type": "float", "value": "-1.976262583364986e-308"}
+       }
+
+[1m     want:[0m
+       {
+           "int64-max":     {"type": "integer", "value": "9223372036854775807"},
+           "int64-max-neg": {"type": "integer", "value": "-9223372036854775808"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/integer/underscore[0m
+[1;38;5;0;48;5;224m [0m    Key "kilo" is not "integer" but "float":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"integer", "value":"1000"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"float", "value":"1000"}
+
+[1m     input sent to parser-cmd:[0m
+       kilo = 1_000
+       x = 1_1_1_1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "kilo": {"type": "float", "value": "1000"},
+         "x":    {"type": "float", "value": "1111"}
+       }
+
+[1m     want:[0m
+       {
+           "kilo": {"type": "integer", "value": "1000"},
+           "x":    {"type": "integer", "value": "1111"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/integer/zero[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       d1 = 0
+       d2 = +0
+       d3 = -0
+
+       h1 = 0x0
+       h2 = 0x00
+       h3 = 0x00000
+
+       o1 = 0o0
+       a2 = 0o00
+       a3 = 0o00000
+
+       b1 = 0b0
+       b2 = 0b00
+       b3 = 0b00000
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/key/escapes[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "\n" = "newline"
+       "\b" = "bell"
+       "\u00c0" = "latin capital letter A with grave"
+       "\"" = "just a quote"
+
+       ["backsp\b\b"]
+
+       ["\"quoted\""]
+       quote = true
+
+       ["a.b"."\u00c0"]
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/misc.odin(117:13) Invalid slice indices 3:0 is out of range 0..<3
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/key/quoted-unicode[0m
+[1;38;5;0;48;5;224m [0m    decode JSON output from parser:
+[1;38;5;0;48;5;224m [0m      invalid character 'U' in string escape code
+
+[1m     input sent to parser-cmd:[0m
+
+       "\u0000" = "null"
+       '\u0000' = "different key"
+       "\u0008 \u000c \U00000041 \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \U00010000 \U0010ffff" = "escaped key"
+
+       "~  ÿ ퟿  ￿ 𐀀 􏿿" = "basic key"
+       'l ~  ÿ ퟿  ￿ 𐀀 􏿿' = "literal key"
+
+[1m     output from parser-cmd (stdout):[0m
+       {"~ \u0080 ÿ \ud7ff \ue000 \uffff \U00010000 \U0010ffff":{"type":"string","value":"basic key"},"\b \f A \u007f \u0080 ÿ \ud7ff \ue000 \uffff \x00 \uffff":{"type":"string","value":"escaped key"},"\\u0000":{"type":"string","value":"different key"},"\x00":{"type":"string","value":"null"},"l ~ \u0080 ÿ \ud7ff \ue000 \uffff \U00010000 \U0010ffff":{"type":"string","value":"literal key"}}
+
+[1m     want:[0m
+       {
+           "\u0000":               {"type": "string", "value": "null"},
+           "\b \f A   ÿ ퟿  ￿ 𐀀 􏿿": {"type": "string", "value": "escaped key"},
+           "\\u0000":              {"type": "string", "value": "different key"},
+           "l ~  ÿ ퟿  ￿ 𐀀 􏿿":      {"type": "string", "value": "literal key"},
+           "~  ÿ ퟿  ￿ 𐀀 􏿿":        {"type": "string", "value": "basic key"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/key/space[0m
+[1;38;5;0;48;5;224m [0m    Could not find key " tbl " in parser output.
+
+[1m     input sent to parser-cmd:[0m
+       # Keep whitespace inside quotes keys at all positions.
+       "a b"   = 1
+       " c d " = 2
+
+       [ " tbl " ]
+       "\ttab\ttab\t" = "tab"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         " c d ": {"type": "integer", "value": "2"},
+         "a b":   {"type": "integer", "value": "1"},
+         "\" tbl \"": {
+           "\ttab\ttab\t": {"type": "string", "value": "tab"}
+         }
+       }
+
+[1m     want:[0m
+       {
+           " c d ": {"type": "integer", "value": "2"},
+           "a b":   {"type": "integer", "value": "1"},
+           " tbl ": {
+               "\ttab\ttab\t": {"type": "string", "value": "tab"}
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec-example-1-compact[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       #Useless spaces eliminated.
+       title="TOML Example"
+       [owner]
+       name="Lance Uppercut"
+       dob=1979-05-27T07:32:00-08:00#First class dates
+       [database]
+       server="192.168.1.1"
+       ports=[8001,8001,8002]
+       connection_max=5000
+       enabled=true
+       [servers]
+       [servers.alpha]
+       ip="10.0.0.1"
+       dc="eqdc10"
+       [servers.beta]
+       ip="10.0.0.2"
+       dc="eqdc10"
+       [clients]
+       data=[["gamma","delta"],[1,2]]
+       hosts=[
+       "alpha",
+       "omega"
+       ]
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'spaces'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/array-0[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       integers = [ 1, 2, 3 ]
+       colors = [ "red", "yellow", "green" ]
+       nested_arrays_of_ints = [ [ 1, 2 ], [3, 4, 5] ]
+       nested_mixed_array = [ [ 1, 2 ], ["a", "b", "c"] ]
+       string_array = [ "all", 'strings', """are the same""", '''type''' ]
+
+       # Mixed-type arrays are allowed
+       numbers = [ 0.1, 0.2, 0.5, 1, 2, 5 ]
+       contributors = [
+         "Foo Bar <foo@example.com>",
+         { name = "Baz Qux", email = "bazqux@example.com", url = "https://example.com/bazqux" }
+       ]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/array-of-tables-2[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       points = [ { x = 1, y = 2, z = 3 },
+                  { x = 7, y = 8, z = 9 },
+                  { x = 2, y = 4, z = 8 } ]
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/float-0[0m
+[1;38;5;0;48;5;224m [0m    Values for key "flt4" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     5e+22
+[1;38;5;0;48;5;224m [0m      Your encoder: 4.999999999999999e+22
+
+[1m     input sent to parser-cmd:[0m
+       # fractional
+       flt1 = +1.0
+       flt2 = 3.1415
+       flt3 = -0.01
+
+       # exponent
+       flt4 = 5e+22
+       flt5 = 1e06
+       flt6 = -2E-2
+
+       # both
+       flt7 = 6.626e-34
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "flt1": {"type": "float", "value": "1"},
+         "flt2": {"type": "float", "value": "3.1415"},
+         "flt3": {"type": "float", "value": "-0.01"},
+         "flt4": {"type": "float", "value": "4.999999999999999e+22"},
+         "flt5": {"type": "float", "value": "1e+06"},
+         "flt6": {"type": "float", "value": "-0.02"},
+         "flt7": {"type": "float", "value": "6.618193064541891e-34"}
+       }
+
+[1m     want:[0m
+       {
+           "flt1": {"type": "float", "value": "1"},
+           "flt2": {"type": "float", "value": "3.1415"},
+           "flt3": {"type": "float", "value": "-0.01"},
+           "flt4": {"type": "float", "value": "5e+22"},
+           "flt5": {"type": "float", "value": "1e+06"},
+           "flt6": {"type": "float", "value": "-0.02"},
+           "flt7": {"type": "float", "value": "6.626e-34"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/float-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       # infinity
+       sf1 = inf  # positive infinity
+       sf2 = +inf # positive infinity
+       sf3 = -inf # negative infinity
+
+       # not a number
+       sf4 = nan  # actual sNaN/qNaN encoding is implementation-specific
+       sf5 = +nan # same as `nan`
+       sf6 = -nan # valid, actual encoding is implementation-specific
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(389:5) runtime assertion: No.  (No NaN)
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/inline-table-0[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       name = { first = "Tom", last = "Preston-Werner" }
+       point = { x = 1, y = 2 }
+       animal = { type.name = "pug" }
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'x'!
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/integer-0[0m
+[1;38;5;0;48;5;224m [0m    Key "int1" is not "integer" but "float":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"integer", "value":"99"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"float", "value":"99"}
+
+[1m     input sent to parser-cmd:[0m
+       int1 = +99
+       int2 = 42
+       int3 = 0
+       int4 = -17
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "int1": {"type": "float", "value": "99"},
+         "int2": {"type": "integer", "value": "42"},
+         "int3": {"type": "integer", "value": "0"},
+         "int4": {"type": "float", "value": "-17"}
+       }
+
+[1m     want:[0m
+       {
+           "int1": {"type": "integer", "value": "99"},
+           "int2": {"type": "integer", "value": "42"},
+           "int3": {"type": "integer", "value": "0"},
+           "int4": {"type": "integer", "value": "-17"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/integer-1[0m
+[1;38;5;0;48;5;224m [0m    Key "int5" is not "integer" but "float":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"integer", "value":"1000"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"float", "value":"1000"}
+
+[1m     input sent to parser-cmd:[0m
+       int5 = 1_000
+       int6 = 5_349_221
+       int7 = 53_49_221  # Indian number system grouping
+       int8 = 1_2_3_4_5  # VALID but discouraged
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "int5": {"type": "float", "value": "1000"},
+         "int6": {"type": "float", "value": "5.349221e+06"},
+         "int7": {"type": "float", "value": "5.349221e+06"},
+         "int8": {"type": "float", "value": "12345"}
+       }
+
+[1m     want:[0m
+       {
+           "int5": {"type": "integer", "value": "1000"},
+           "int6": {"type": "integer", "value": "5349221"},
+           "int7": {"type": "integer", "value": "5349221"},
+           "int8": {"type": "integer", "value": "12345"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/integer-2[0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       # hexadecimal with prefix `0x`
+       hex1 = 0xDEADBEEF
+       hex2 = 0xdeadbeef
+       hex3 = 0xdead_beef
+
+       # octal with prefix `0o`
+       oct1 = 0o01234567
+       oct2 = 0o755 # useful for Unix file permissions
+
+       # binary with prefix `0b`
+       bin1 = 0b11010110
+
+[1m     output from parser-cmd (stderr):[0m
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/local-date-0[0m
+[1;38;5;0;48;5;224m [0m    Key "ld1" is not "date-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"date-local", "value":"1979-05-27"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"1979-05-27T00:00:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       ld1 = 1979-05-27
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "ld1": {"type": "datetime", "value": "1979-05-27T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       {
+           "ld1": {"type": "date-local", "value": "1979-05-27"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/local-date-time-0[0m
+[1;38;5;0;48;5;224m [0m    Key "ldt1" is not "datetime-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"datetime-local", "value":"1979-05-27T07:32:00"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"1979-05-27T07:32:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       ldt1 = 1979-05-27T07:32:00
+       ldt2 = 1979-05-27T00:32:00.999
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "ldt1": {"type": "datetime", "value": "1979-05-27T07:32:00Z"},
+         "ldt2": {"type": "datetime", "value": "1979-05-27T00:32:01Z"}
+       }
+
+[1m     want:[0m
+       {
+           "ldt1": {"type": "datetime-local", "value": "1979-05-27T07:32:00"},
+           "ldt2": {"type": "datetime-local", "value": "1979-05-27T00:32:00.999"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/local-time-0[0m
+[1;38;5;0;48;5;224m [0m    Key "lt1" is not "time-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"time-local", "value":"07:32:00"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"0000-00-00T07:32:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       lt1 = 07:32:00
+       lt2 = 00:32:00.999
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "lt1": {"type": "datetime", "value": "0000-00-00T07:32:00Z"},
+         "lt2": {"type": "datetime", "value": "0000-00-00T00:32:01Z"}
+       }
+
+[1m     want:[0m
+       {
+           "lt1": {"type": "time-local", "value": "07:32:00"},
+           "lt2": {"type": "time-local", "value": "00:32:00.999"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/string-1[0m
+[1;38;5;0;48;5;224m [0m    Values for key "str1" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     Roses are red
+[1;38;5;0;48;5;224m [0m    Violets are blue
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    Roses are red
+[1;38;5;0;48;5;224m [0m    Violets are blue
+
+[1m     input sent to parser-cmd:[0m
+       str1 = """
+       Roses are red
+       Violets are blue"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "str1": {"type": "string", "value": "\nRoses are red\nViolets are blue"}
+       }
+
+[1m     want:[0m
+       {
+           "str1": {"type": "string", "value": "Roses are red\nViolets are blue"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/string-3[0m
+[1;38;5;0;48;5;224m [0m    Values for key "str2" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     The quick brown fox jumps over the lazy dog.
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    The quick brown
+[1;38;5;0;48;5;224m [0m
+[1;38;5;0;48;5;224m [0m      fox jumps over     the lazy dog.
+
+[1m     input sent to parser-cmd:[0m
+       # The following strings are byte-for-byte equivalent:
+       str1 = "The quick brown fox jumps over the lazy dog."
+
+       str2 = """
+       The quick brown \
+
+
+         fox jumps over \
+           the lazy dog."""
+
+       str3 = """\
+              The quick brown \
+              fox jumps over \
+              the lazy dog.\
+              """
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "str1": {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+         "str2": {"type": "string", "value": "\nThe quick brown \n\n  fox jumps over     the lazy dog."},
+         "str3": {
+           "type":  "string",
+           "value": "       The quick brown        fox jumps over        the lazy dog.       "
+         }
+       }
+
+[1m     want:[0m
+       {
+           "str1": {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+           "str2": {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+           "str3": {"type": "string", "value": "The quick brown fox jumps over the lazy dog."}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/string-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       str4 = """Here are two quotation marks: "". Simple enough."""
+       # str5 = """Here are three quotation marks: """."""  # INVALID
+       str5 = """Here are three quotation marks: ""\"."""
+       str6 = """Here are fifteen quotation marks: ""\"""\"""\"""\"""\"."""
+
+       # "This," she said, "is just a pointless statement."
+       str7 = """"This," she said, "is just a pointless statement.""""
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/string-6[0m
+[1;38;5;0;48;5;224m [0m    Values for key "lines" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     The first newline is
+[1;38;5;0;48;5;224m [0m    trimmed in raw strings.
+[1;38;5;0;48;5;224m [0m       All other whitespace
+[1;38;5;0;48;5;224m [0m       is preserved.
+[1;38;5;0;48;5;224m [0m
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    The first newline is
+[1;38;5;0;48;5;224m [0m    trimmed in raw strings.
+[1;38;5;0;48;5;224m [0m       All other whitespace
+[1;38;5;0;48;5;224m [0m       is preserved.
+
+[1m     input sent to parser-cmd:[0m
+       regex2 = '''I [dw]on't need \d{2} apples'''
+       lines  = '''
+       The first newline is
+       trimmed in raw strings.
+          All other whitespace
+          is preserved.
+       '''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "regex2": {"type": "string", "value": "I [dw]on't need \\d{2} apples"},
+         "lines": {
+           "type":  "string",
+           "value": "\nThe first newline is\ntrimmed in raw strings.\n   All other whitespace\n   is preserved.\n"
+         }
+       }
+
+[1m     want:[0m
+       {
+           "lines":  {"type": "string", "value": "The first newline is\ntrimmed in raw strings.\n   All other whitespace\n   is preserved.\n"},
+           "regex2": {"type": "string", "value": "I [dw]on't need \\d{2} apples"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/table-2[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "dog.tater.man" in parser output.
+
+[1m     input sent to parser-cmd:[0m
+       [dog."tater.man"]
+       type.name = "pug"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "dog": {
+           "\"tater.man\"": {
+             "type": {
+               "name": {"type": "string", "value": "pug"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       {
+           "dog": {
+               "tater.man": {
+                   "type": {
+                       "name": {"type": "string", "value": "pug"}
+                   }
+               }
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/table-3[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "j.ʞ.l" in parser output.
+
+[1m     input sent to parser-cmd:[0m
+       [a.b.c]            # this is best practice
+       [ d.e.f ]          # same as [d.e.f]
+       [ g .  h  . i ]    # same as [g.h.i]
+       [ j . "ʞ" . 'l' ]  # same as [j."ʞ".'l']
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {
+             "c": {}
+           }
+         },
+         "d": {
+           "e": {
+             "f": {}
+           }
+         },
+         "g": {
+           "h": {
+             "i": {}
+           }
+         },
+         "j": {
+           "ʞ": {
+             "'l'": {}
+           }
+         }
+       }
+
+[1m     want:[0m
+       {
+           "a": {
+               "b": {
+                   "c": {}
+               }
+           },
+           "d": {
+               "e": {
+                   "f": {}
+               }
+           },
+           "g": {
+               "h": {
+                   "i": {}
+               }
+           },
+           "j": {
+               "ʞ": {
+                   "l": {}
+               }
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/spec/table-7[0m
+[1;38;5;0;48;5;224m [0m    Key "owner.member_since" is not "date-local" but "datetime":
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any{"type":"date-local", "value":"1999-08-04"}
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any{"type":"datetime", "value":"1999-08-04T00:00:00Z"}
+
+[1m     input sent to parser-cmd:[0m
+       # Top-level table begins.
+       name = "Fido"
+       breed = "pug"
+
+       # Top-level table ends.
+       [owner]
+       name = "Regina Dogman"
+       member_since = 1999-08-04
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "breed": {"type": "string", "value": "pug"},
+         "name":  {"type": "string", "value": "Fido"},
+         "owner": {
+           "member_since": {"type": "datetime", "value": "1999-08-04T00:00:00Z"},
+           "name":         {"type": "string", "value": "Regina Dogman"}
+         }
+       }
+
+[1m     want:[0m
+       {
+           "breed": {"type": "string", "value": "pug"},
+           "name":  {"type": "string", "value": "Fido"},
+           "owner": {
+               "member_since": {"type": "date-local", "value": "1999-08-04"},
+               "name":         {"type": "string", "value": "Regina Dogman"}
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/ends-in-whitespace-escape[0m
+[1;38;5;0;48;5;224m [0m    Values for key "beee" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     heeee
+[1;38;5;0;48;5;224m [0m    geeee
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    heeee
+[1;38;5;0;48;5;224m [0m    geeee
+
+[1m     input sent to parser-cmd:[0m
+       beee = """
+       heeee
+       geeee\
+
+
+             """
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "beee": {"type": "string", "value": "\nheeee\ngeeee \n\n\n      "}
+       }
+
+[1m     want:[0m
+       {
+           "beee": {"type": "string", "value": "heeee\ngeeee"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/escape-tricky[0m
+[1;38;5;0;48;5;224m [0m    Values for key "lit_multiline_not_unicode" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     \u007f
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    \u007f
+
+[1m     input sent to parser-cmd:[0m
+       end_esc = "String does not end here\" but ends here\\"
+       lit_end_esc = 'String ends here\'
+
+       multiline_unicode = """
+       \u00a0"""
+
+       multiline_not_unicode = """
+       \\u0041"""
+
+       multiline_end_esc = """When will it end? \"""...""\" should be here\""""
+
+       lit_multiline_not_unicode = '''
+       \u007f'''
+
+       lit_multiline_end = '''There is no escape\'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "end_esc":                   {"type": "string", "value": "String does not end here\" but ends here\\"},
+         "lit_end_esc":               {"type": "string", "value": "String ends here\\"},
+         "lit_multiline_end":         {"type": "string", "value": "There is no escape\\"},
+         "lit_multiline_not_unicode": {"type": "string", "value": "\n\\u007f"},
+         "multiline_end_esc":         {"type": "string", "value": "When will it end? \"\"\"...\"\"\" should be here\""},
+         "multiline_not_unicode":     {"type": "string", "value": "\n\\A"},
+         "multiline_unicode":         {"type": "string", "value": "\n "}
+       }
+
+[1m     want:[0m
+       {
+           "end_esc":                   {"type": "string", "value": "String does not end here\" but ends here\\"},
+           "lit_end_esc":               {"type": "string", "value": "String ends here\\"},
+           "lit_multiline_end":         {"type": "string", "value": "There is no escape\\"},
+           "lit_multiline_not_unicode": {"type": "string", "value": "\\u007f"},
+           "multiline_end_esc":         {"type": "string", "value": "When will it end? \"\"\"...\"\"\" should be here\""},
+           "multiline_not_unicode":     {"type": "string", "value": "\\u0041"},
+           "multiline_unicode":         {"type": "string", "value": " "}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/escaped-escape[0m
+[1;38;5;0;48;5;224m [0m    [TOKENIZER ERROR] ["\\xXX is not in the spec, you can just use \\u00XX instead."]
+[1;38;5;0;48;5;224m [0m
+[1;38;5;0;48;5;224m [0m    Exit 1
+
+[1m     input sent to parser-cmd:[0m
+       answer = "\\x64"
+
+[1m     output from parser-cmd (stderr):[0m
+       [TOKENIZER ERROR] ["\\xXX is not in the spec, you can just use \\u00XX instead."]
+
+       Exit 1
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/escapes[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       backspace     = "|\b."
+       tab           = "|\t."
+       newline       = "|\n."
+       formfeed      = "|\f."
+       carriage      = "|\r."
+       quote         = "|\"."
+       backslash     = "|\\."
+       delete        = "|\u007F."
+       unitseparator = "|\u001F."
+
+       # \u is escaped, so should NOT be interperted as a \u escape.
+       notunicode1   = "|\\u."
+       notunicode2   = "|\u005Cu."
+       notunicode3   = "|\\u0075."
+       notunicode4   = "|\\\u0075."
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/misc.odin(34:55) Invalid slice indices 5:9 is out of range 0..<7
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/multiline[0m
+[1;38;5;0;48;5;224m [0m    Values for key "equivalent_three" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     The quick brown fox jumps over the lazy dog.
+[1;38;5;0;48;5;224m [0m      Your encoder:        The quick brown        fox jumps over        the lazy dog.
+
+[1m     input sent to parser-cmd:[0m
+       # NOTE: this file includes some literal tab characters.
+
+       equivalent_one = "The quick brown fox jumps over the lazy dog."
+       equivalent_two = """
+       The quick brown \
+
+
+         fox jumps over \
+           the lazy dog."""
+
+       equivalent_three = """\
+              The quick brown \
+              fox jumps over \
+              the lazy dog.\
+              """
+
+       whitespace-after-bs = """\
+              The quick brown \
+              fox jumps over \
+              the lazy dog.\
+              """
+
+       no-space = """a\
+           b"""
+
+       # Has tab character.
+       keep-ws-before = """a   	\
+          b"""
+
+       escape-bs-1 = """a \\
+       b"""
+
+       escape-bs-2 = """a \\\
+       b"""
+
+       escape-bs-3 = """a \\\\
+         b"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "equivalent_one": {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+         "equivalent_two": {"type": "string", "value": "\nThe quick brown \n\n  fox jumps over     the lazy dog."},
+         "escape-bs-1":    {"type": "string", "value": "a \\b"},
+         "escape-bs-2":    {"type": "string", "value": "a \\\\b"},
+         "escape-bs-3":    {"type": "string", "value": "a \\\\\\  b"},
+         "keep-ws-before": {"type": "string", "value": "a   \t   b"},
+         "no-space":       {"type": "string", "value": "a    b"},
+         "equivalent_three": {
+           "type":  "string",
+           "value": "       The quick brown        fox jumps over        the lazy dog.       "
+         },
+         "whitespace-after-bs": {
+           "type":  "string",
+           "value": "       The quick brown        fox jumps over   \n       the lazy dog.\n       "
+         }
+       }
+
+[1m     want:[0m
+       {
+           "equivalent_one":      {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+           "equivalent_three":    {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+           "equivalent_two":      {"type": "string", "value": "The quick brown fox jumps over the lazy dog."},
+           "escape-bs-1":         {"type": "string", "value": "a \\\nb"},
+           "escape-bs-2":         {"type": "string", "value": "a \\b"},
+           "escape-bs-3":         {"type": "string", "value": "a \\\\\n  b"},
+           "keep-ws-before":      {"type": "string", "value": "a   \tb"},
+           "no-space":            {"type": "string", "value": "ab"},
+           "whitespace-after-bs": {"type": "string", "value": "The quick brown fox jumps over the lazy dog."}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/multiline-empty[0m
+[1;38;5;0;48;5;224m [0m    Values for key "empty-2" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:
+[1;38;5;0;48;5;224m [0m      Your encoder:
+
+[1m     input sent to parser-cmd:[0m
+       empty-1 = """"""
+
+       # A newline immediately following the opening delimiter will be trimmed.
+       empty-2 = """
+       """
+
+       # \ at the end of line trims newlines as well; note that last \ is followed by
+       # two spaces, which are ignored.
+       empty-3 = """\
+           """
+       empty-4 = """\
+          \
+          \
+          """
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "empty-1": {"type": "string", "value": ""},
+         "empty-2": {"type": "string", "value": "\n"},
+         "empty-3": {"type": "string", "value": "    "},
+         "empty-4": {"type": "string", "value": "       \n   "}
+       }
+
+[1m     want:[0m
+       {
+           "empty-1": {"type": "string", "value": ""},
+           "empty-2": {"type": "string", "value": ""},
+           "empty-3": {"type": "string", "value": ""},
+           "empty-4": {"type": "string", "value": ""}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/multiline-escaped-crlf[0m
+[1;38;5;0;48;5;224m [0m    Values for key "0" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:
+[1;38;5;0;48;5;224m [0m      Your encoder:
+
+[1m     input sent to parser-cmd:[0m
+       # The following line should be an unescaped backslash followed by a Windows
+       # newline sequence ("\r\n")
+       0="""\
+       """
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "0": {"type": "string", "value": "\n"}
+       }
+
+[1m     want:[0m
+       {
+           "0": {"type": "string", "value": ""}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/multiline-quotes[0m
+[1;38;5;0;48;5;224m [0m    Values for key "five-quotes" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     Closing with five quotes
+[1;38;5;0;48;5;224m [0m    ""
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    Closing with five quotes
+[1;38;5;0;48;5;224m [0m    ""
+
+[1m     input sent to parser-cmd:[0m
+       # Make sure that quotes inside multiline strings are allowed, including right
+       # after the opening '''/""" and before the closing '''/"""
+
+       lit_one = ''''one quote''''
+       lit_two = '''''two quotes'''''
+       lit_one_space = ''' 'one quote' '''
+       lit_two_space = ''' ''two quotes'' '''
+
+       one = """"one quote""""
+       two = """""two quotes"""""
+       one_space = """ "one quote" """
+       two_space = """ ""two quotes"" """
+
+       mismatch1 = """aaa'''bbb"""
+       mismatch2 = '''aaa"""bbb'''
+
+       # Three opening """, then one escaped ", then two "" (allowed), and then three
+       # closing """
+       escaped = """lol\""""""
+
+       five-quotes = """
+       Closing with five quotes
+       """""
+       four-quotes = """
+       Closing with four quotes
+       """"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "escaped":       {"type": "string", "value": "lol\"\"\""},
+         "five-quotes":   {"type": "string", "value": "\nClosing with five quotes\n\"\""},
+         "four-quotes":   {"type": "string", "value": "\nClosing with four quotes\n\""},
+         "lit_one":       {"type": "string", "value": "'one quote'"},
+         "lit_one_space": {"type": "string", "value": " 'one quote' "},
+         "lit_two":       {"type": "string", "value": "''two quotes''"},
+         "lit_two_space": {"type": "string", "value": " ''two quotes'' "},
+         "mismatch1":     {"type": "string", "value": "aaa'''bbb"},
+         "mismatch2":     {"type": "string", "value": "aaa\"\"\"bbb"},
+         "one":           {"type": "string", "value": "\"one quote\""},
+         "one_space":     {"type": "string", "value": " \"one quote\" "},
+         "two":           {"type": "string", "value": "\"\"two quotes\"\""},
+         "two_space":     {"type": "string", "value": " \"\"two quotes\"\" "}
+       }
+
+[1m     want:[0m
+       {
+           "escaped":       {"type": "string", "value": "lol\"\"\""},
+           "five-quotes":   {"type": "string", "value": "Closing with five quotes\n\"\""},
+           "four-quotes":   {"type": "string", "value": "Closing with four quotes\n\""},
+           "lit_one":       {"type": "string", "value": "'one quote'"},
+           "lit_one_space": {"type": "string", "value": " 'one quote' "},
+           "lit_two":       {"type": "string", "value": "''two quotes''"},
+           "lit_two_space": {"type": "string", "value": " ''two quotes'' "},
+           "mismatch1":     {"type": "string", "value": "aaa'''bbb"},
+           "mismatch2":     {"type": "string", "value": "aaa\"\"\"bbb"},
+           "one":           {"type": "string", "value": "\"one quote\""},
+           "one_space":     {"type": "string", "value": " \"one quote\" "},
+           "two":           {"type": "string", "value": "\"\"two quotes\"\""},
+           "two_space":     {"type": "string", "value": " \"\"two quotes\"\" "}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/quoted-unicode[0m
+[1;38;5;0;48;5;224m [0m    decode JSON output from parser:
+[1;38;5;0;48;5;224m [0m      invalid character 'x' in string escape code
+
+[1m     input sent to parser-cmd:[0m
+
+       escaped_string = "\u0000 \u0008 \u000c \U00000041 \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \U00010000 \U0010ffff"
+       not_escaped_string = '\u0000 \u0008 \u000c \U00000041 \u007f \u0080 \u00ff \ud7ff \ue000 \uffff \U00010000 \U0010ffff'
+
+       basic_string = "~  ÿ ퟿  ￿ 𐀀 􏿿"
+       literal_string = '~  ÿ ퟿  ￿ 𐀀 􏿿'
+
+[1m     output from parser-cmd (stdout):[0m
+       {"not_escaped_string":{"type":"string","value":"\\u0000 \\u0008 \\u000c \\U00000041 \\u007f \\u0080 \\u00ff \\ud7ff \\ue000 \\uffff \\U00010000 \\U0010ffff"},"basic_string":{"type":"string","value":"~ \u0080 ÿ \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"},"escaped_string":{"type":"string","value":"\x00 \b \f A \u007f \u0080 ÿ \ud7ff \ue000 \uffff \x00 \uffff"},"literal_string":{"type":"string","value":"~ \u0080 ÿ \ud7ff \ue000 \uffff \ud800\udc00 \udbff\udfff"}}
+
+[1m     want:[0m
+       {
+           "basic_string":   {"type": "string", "value": "~  ÿ ퟿  ￿ 𐀀 􏿿"},
+           "escaped_string": {"type": "string", "value": "\u0000 \b \f A   ÿ ퟿  ￿ 𐀀 􏿿"},
+           "literal_string": {"type": "string", "value": "~  ÿ ퟿  ￿ 𐀀 􏿿"},
+           "not_escaped_string": {
+               "type":  "string",
+               "value": "\\u0000 \\u0008 \\u000c \\U00000041 \\u007f \\u0080 \\u00ff \\ud7ff \\ue000 \\uffff \\U00010000 \\U0010ffff"
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/raw-multiline[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       # Single ' should be allowed.
+       oneline = '''This string has a ' quote character.'''
+
+       # A newline immediately following the opening delimiter will be trimmed.
+       firstnl = '''
+       This string has a ' quote character.'''
+
+       # All other whitespace and newline characters remain intact.
+       multiline = '''
+       This string
+       has ' a quote character
+       and more than
+       one newline
+       in it.'''
+
+       # Tab character in literal string does not need to be escaped
+       multiline_with_tab = '''First line
+       	 Followed by a tab'''
+
+       this-str-has-apostrophes='''' there's one already
+       '' two more
+       '''''
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+          <empty>
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/start-mb[0m
+[1;38;5;0;48;5;224m [0m    Values for key "s4" don't match:
+[1;38;5;0;48;5;224m [0m      Expected:     §
+[1;38;5;0;48;5;224m [0m      Your encoder:
+[1;38;5;0;48;5;224m [0m    §
+
+[1m     input sent to parser-cmd:[0m
+       # Start first line with a multibyte character.
+       #
+       # https://github.com/marzer/tomlplusplus/issues/190
+       s1 = "§"
+       s2 = '§'
+       s3 = """\
+       §"""
+       s4 = """
+       §"""
+       s5 = """§"""
+       s6 = '''
+       §'''
+       s7 = '''§'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "s1": {"type": "string", "value": "§"},
+         "s2": {"type": "string", "value": "§"},
+         "s3": {"type": "string", "value": "§"},
+         "s4": {"type": "string", "value": "\n§"},
+         "s5": {"type": "string", "value": "§"},
+         "s6": {"type": "string", "value": "\n§"},
+         "s7": {"type": "string", "value": "§"}
+       }
+
+[1m     want:[0m
+       {
+           "s1": {"type": "string", "value": "§"},
+           "s2": {"type": "string", "value": "§"},
+           "s3": {"type": "string", "value": "§"},
+           "s4": {"type": "string", "value": "§"},
+           "s5": {"type": "string", "value": "§"},
+           "s6": {"type": "string", "value": "§"},
+           "s7": {"type": "string", "value": "§"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/string/unicode-escape[0m
+[1;38;5;0;48;5;224m [0m    decode JSON output from parser:
+[1;38;5;0;48;5;224m [0m      invalid character 'x' in string escape code
+
+[1m     input sent to parser-cmd:[0m
+       delta-1 = "\u03B4"
+       delta-2 = "\U000003B4"
+       a       = "\u0061"
+       b       = "\u0062"
+       c       = "\U00000063"
+       null-1  = "\u0000"
+       null-2  = "\U00000000"
+
+       ml-delta-1 = """\u03B4"""
+       ml-delta-2 = """\U000003B4"""
+       ml-a       = """\u0061"""
+       ml-b       = """\u0062"""
+       ml-c       = """\U00000063"""
+       ml-null-1  = """\u0000"""
+       ml-null-2  = """\U00000000"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {"delta-2":{"type":"string","value":"\u03b4"},"a":{"type":"string","value":"a"},"ml-null-1":{"type":"string","value":"\x00"},"ml-delta-2":{"type":"string","value":"\u03b4"},"ml-c":{"type":"string","value":"c"},"ml-null-2":{"type":"string","value":"\x00"},"b":{"type":"string","value":"b"},"null-1":{"type":"string","value":"\x00"},"ml-a":{"type":"string","value":"a"},"delta-1":{"type":"string","value":"\u03b4"},"ml-b":{"type":"string","value":"b"},"null-2":{"type":"string","value":"\x00"},"ml-delta-1":{"type":"string","value":"\u03b4"},"c":{"type":"string","value":"c"}}
+
+[1m     want:[0m
+       {
+           "a":          {"type": "string", "value": "a"},
+           "b":          {"type": "string", "value": "b"},
+           "c":          {"type": "string", "value": "c"},
+           "delta-1":    {"type": "string", "value": "δ"},
+           "delta-2":    {"type": "string", "value": "δ"},
+           "ml-a":       {"type": "string", "value": "a"},
+           "ml-b":       {"type": "string", "value": "b"},
+           "ml-c":       {"type": "string", "value": "c"},
+           "ml-delta-1": {"type": "string", "value": "δ"},
+           "ml-delta-2": {"type": "string", "value": "δ"},
+           "ml-null-1":  {"type": "string", "value": "\u0000"},
+           "ml-null-2":  {"type": "string", "value": "\u0000"},
+           "null-1":     {"type": "string", "value": "\u0000"},
+           "null-2":     {"type": "string", "value": "\u0000"}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/array-implicit[0m
+[1;38;5;0;48;5;224m [0m    Key "albums" (type "table"):
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any(nil)
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any
+
+[1m     input sent to parser-cmd:[0m
+       [[albums.songs]]
+       name = "Glory Days"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "albums": [{"songs": [{
+           "name": {"type": "string", "value": "Glory Days"}
+         }]}]
+       }
+
+[1m     want:[0m
+       {
+           "albums": {"songs": [{
+               "name": {"type": "string", "value": "Glory Days"}
+           }]}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/array-implicit-and-explicit-after[0m
+[1;38;5;0;48;5;224m [0m    Key "a" (type "table"):
+[1;38;5;0;48;5;224m [0m      Expected:     map[string]any(nil)
+[1;38;5;0;48;5;224m [0m      Your encoder: map[string]any
+
+[1m     input sent to parser-cmd:[0m
+       [[a.b]]
+       x = 1
+
+       [a]
+       y = 2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": [{
+           "b": [{
+             "x": {"type": "integer", "value": "1"}
+           }],
+           "y": {"type": "integer", "value": "2"}
+         }]
+       }
+
+[1m     want:[0m
+       {
+           "a": {
+               "b": [{
+                   "x": {"type": "integer", "value": "1"}
+               }],
+               "y": {"type": "integer", "value": "2"}
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/empty-name[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "''" in expected output.
+
+[1m     input sent to parser-cmd:[0m
+       ['']
+       x = 1
+
+       ["".a]
+       x = 2
+
+       [a.'']
+       x = 3
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "": {
+           "a": {
+             "x": {"type": "integer", "value": "2"}
+           }
+         },
+         "''": {
+           "x": {"type": "integer", "value": "1"}
+         },
+         "a": {
+           "''": {
+             "x": {"type": "integer", "value": "3"}
+           }
+         }
+       }
+
+[1m     want:[0m
+       {
+           "": {
+               "x": {"type": "integer", "value": "1"},
+               "a": {
+                   "x": {"type": "integer", "value": "2"}
+               }
+           },
+           "a": {
+               "": {
+                   "x": {"type": "integer", "value": "3"}
+               }
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/names[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "a. x " in parser output.
+
+[1m     input sent to parser-cmd:[0m
+       [a.b.c]
+       [a."b.c"]
+       [a.'d.e']
+       [a.' x ']
+       [ d.e.f ]
+       [ g . h . i ]
+       [ j . "ʞ" . 'l' ]
+
+       [x.1.2]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "\"b.c\"": {},
+           "' x '": {},
+           "'d.e'": {},
+           "b": {
+             "c": {}
+           }
+         },
+         "d": {
+           "e": {
+             "f": {}
+           }
+         },
+         "g": {
+           "h": {
+             "i": {}
+           }
+         },
+         "j": {
+           "ʞ": {
+             "'l'": {}
+           }
+         },
+         "x": {
+           "1": {
+             "2": {}
+           }
+         }
+       }
+
+[1m     want:[0m
+       {
+           "a": {
+               " x ": {},
+               "b.c": {},
+               "d.e": {},
+               "b": {
+                   "c": {}
+               }
+           },
+           "d": {
+               "e": {
+                   "f": {}
+               }
+           },
+           "g": {
+               "h": {
+                   "i": {}
+               }
+           },
+           "j": {
+               "ʞ": {
+                   "l": {}
+               }
+           },
+           "x": {
+               "1": {
+                   "2": {}
+               }
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/whitespace[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "valid key" in parser output.
+
+[1m     input sent to parser-cmd:[0m
+       ["valid key"]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "\"valid key\"": {}
+       }
+
+[1m     want:[0m
+       {
+           "valid key": {}
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/with-literal-string[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "'a'" in expected output.
+
+[1m     input sent to parser-cmd:[0m
+       ['a']
+       [a.'"b"']
+       [a.'"b"'.c]
+       answer = 42
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "'a'": {},
+         "a": {
+           "'\"b\"'": {},
+           "\"b\"": {
+             "c": {
+               "answer": {"type": "integer", "value": "42"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       {
+           "a": {
+               "\"b\"": {
+                   "c": {
+                       "answer": {"type": "integer", "value": "42"}
+                   }
+               }
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/with-pound[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "key#group" in parser output.
+
+[1m     input sent to parser-cmd:[0m
+       ["key#group"]
+       answer = 42
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "\"key#group\"": {
+           "answer": {"type": "integer", "value": "42"}
+         }
+       }
+
+[1m     want:[0m
+       {
+           "key#group": {
+               "answer": {"type": "integer", "value": "42"}
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1mvalid/table/with-single-quotes[0m
+[1;38;5;0;48;5;224m [0m    Could not find key "'a'" in expected output.
+
+[1m     input sent to parser-cmd:[0m
+       ['a']
+       [a.'b']
+       [a.'b'.c]
+       answer = 42
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "'a'": {},
+         "a": {
+           "'b'": {},
+           "b": {
+             "c": {
+               "answer": {"type": "integer", "value": "42"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       {
+           "a": {
+               "b": {
+                   "c": {
+                       "answer": {"type": "integer", "value": "42"}
+                   }
+               }
+           }
+       }
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/double-comma-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       double-comma-1 = [1,,2]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "double-comma-1": [
+           {"type": "integer", "value": "1"},
+           {"type": "integer", "value": "2"}
+         ]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/double-comma-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       double-comma-2 = [1,2,,]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "double-comma-2": [
+           {"type": "integer", "value": "1"},
+           {"type": "integer", "value": "2"}
+         ]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/extend-defined-aot[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[tab.arr]]
+       [tab]
+       arr.val1=1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "tab": [{"arr": [{
+           "val1": {"type": "integer", "value": "1"}
+         }]}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/missing-separator-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       arrr = [true false]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "arrr": [
+           {"type": "bool", "value": "true"},
+           {"type": "bool", "value": "false"}
+         ]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/missing-separator-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       wrong = [ 1 2 3 ]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "wrong": [
+           {"type": "integer", "value": "1"},
+           {"type": "integer", "value": "2"},
+           {"type": "integer", "value": "3"}
+         ]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/no-comma-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       no-comma-1 = [true false]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "no-comma-1": [
+           {"type": "bool", "value": "true"},
+           {"type": "bool", "value": "false"}
+         ]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/no-comma-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       no-comma-2 = [ 1 2 3 ]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "no-comma-2": [
+           {"type": "integer", "value": "1"},
+           {"type": "integer", "value": "2"},
+           {"type": "integer", "value": "3"}
+         ]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/only-comma-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       only-comma-1 = [,]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "only-comma-1": []
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/only-comma-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       only-comma-2 = [,,]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "only-comma-2": []
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/array/tables-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # INVALID TOML DOC
+       fruit = []
+
+       [[fruit]] # Not allowed
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": [{}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/bool/starting-same-false[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       starting-same-false     = falsey
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "starting-same-false": {"type": "bool", "value": "false"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/bool/starting-same-true[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       starting-same-true      = truer
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "starting-same-true": {"type": "bool", "value": "true"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/bare-cr[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # The following line contains a single carriage return control character
+       
+
+[1m     output from parser-cmd (stdout):[0m
+       {}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/bare-null[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       bare-null         = "some value"  
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "bare-null": {"type": "string", "value": "some value"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/comment-cr[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       comment-cr   = "Carriage return in comment" # a=1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a":          {"type": "integer", "value": "1"},
+         "comment-cr": {"type": "string", "value": "Carriage return in comment"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/comment-del[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       comment-del  = "0x7f"   # 
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "comment-del": {"type": "string", "value": "0x7f"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/comment-ff[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       comment-ff   = "0x7f"   # 
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "comment-ff": {"type": "string", "value": "0x7f"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/comment-lf[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       comment-lf   = "ctrl-P" # 
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "comment-lf": {"type": "string", "value": "ctrl-P"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/comment-null[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       comment-null = "null"   #  
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "comment-null": {"type": "string", "value": "null"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/comment-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       comment-us   = "ctrl-_" # 
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "comment-us": {"type": "string", "value": "ctrl-_"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/multi-cr[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       multi-cr   = """null"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "multi-cr": {"type": "string", "value": "null\r"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/multi-del[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       multi-del  = """null"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "multi-del": {"type": "string", "value": "null"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/multi-lf[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       multi-lf   = """null"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {"multi-lf":{"type":"string","value":"null\x10"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/multi-null[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       multi-null = """null """
+
+[1m     output from parser-cmd (stdout):[0m
+       {"multi-null":{"type":"string","value":"null\x00"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/multi-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       multi-us   = """null"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {"multi-us":{"type":"string","value":"null\x1f"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawmulti-cd[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawmulti-cd   = '''null'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "rawmulti-cd": {"type": "string", "value": "null\r"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawmulti-del[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawmulti-del  = '''null'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "rawmulti-del": {"type": "string", "value": "null"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawmulti-lf[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawmulti-lf   = '''null'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {"rawmulti-lf":{"type":"string","value":"null\x10"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawmulti-null[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawmulti-null = '''null '''
+
+[1m     output from parser-cmd (stdout):[0m
+       {"rawmulti-null":{"type":"string","value":"null\x00"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawmulti-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawmulti-us   = '''null'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {"rawmulti-us":{"type":"string","value":"null\x1f"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawstring-cr[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       rawstring-cr   = 'null'
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawstring-del[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawstring-del  = 'null'
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "rawstring-del": {"type": "string", "value": "null"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawstring-lf[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawstring-lf   = 'null'
+
+[1m     output from parser-cmd (stdout):[0m
+       {"rawstring-lf":{"type":"string","value":"null\x10"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawstring-null[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawstring-null = 'null '
+
+[1m     output from parser-cmd (stdout):[0m
+       {"rawstring-null":{"type":"string","value":"null\x00"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/rawstring-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       rawstring-us   = 'null'
+
+[1m     output from parser-cmd (stdout):[0m
+       {"rawstring-us":{"type":"string","value":"null\x1f"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/string-bs[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       string-bs   = "backspace"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "string-bs": {"type": "string", "value": "backspace\b"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/string-cr[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       string-cr   = "null"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/string-del[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       string-del  = "null"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "string-del": {"type": "string", "value": "null"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/string-lf[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       string-lf   = "null"
+
+[1m     output from parser-cmd (stdout):[0m
+       {"string-lf":{"type":"string","value":"null\x10"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/string-null[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       string-null = "null "
+
+[1m     output from parser-cmd (stdout):[0m
+       {"string-null":{"type":"string","value":"null\x00"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/control/string-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       string-us   = "null"
+
+[1m     output from parser-cmd (stdout):[0m
+       {"string-us":{"type":"string","value":"null\x1f"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/datetime/mday-under[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # date-mday       = 2DIGIT  ; 01-28, 01-29, 01-30, 01-31 based on
+       #                           ; month/year
+       d = 2006-01-00T00:00:00-00:00
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2006-01-00T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/datetime/month-under[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # date-month      = 2DIGIT  ; 01-12
+       d = 2007-00-01T00:00:00-00:00
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2007-00-01T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/datetime/no-secs[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # No seconds in time.
+       no-secs = 1987-07-05T17:45Z
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "no-secs": {"type": "datetime", "value": "1987-07-05T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/datetime/time-no-leads[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # Leading 0 is always required.
+       d = 2023-10-01T1:32:00Z
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2023-10-01T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-codepoint[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # Invalid codepoint U+D800 : ���
+
+[1m     output from parser-cmd (stdout):[0m
+       {}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-utf8-at-end[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       # There is a 0xda at after the quotes, and no EOL at the end of the file.
+       #
+       # This is a bit of an edge case: This indicates there should be two bytes
+       # (0b1101_1010) but there is no byte to follow because it's the end of the file.
+       x = """"""�
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(361:15) Index 1 is out of range 0..<1
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-utf8-in-comment[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # �
+
+[1m     output from parser-cmd (stdout):[0m
+       {}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-utf8-in-multiline[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # The following line contains an invalid UTF-8 sequence.
+       bad = """�"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "bad": {"type": "string", "value": "�"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-utf8-in-multiline-literal[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # The following line contains an invalid UTF-8 sequence.
+       bad = '''�'''
+
+[1m     output from parser-cmd (stdout):[0m
+       {"bad":{"type":"string","value":"\xc3"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-utf8-in-string[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # The following line contains an invalid UTF-8 sequence.
+       bad = "�"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "bad": {"type": "string", "value": "�"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bad-utf8-in-string-literal[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # The following line contains an invalid UTF-8 sequence.
+       bad = '�'
+
+[1m     output from parser-cmd (stdout):[0m
+       {"bad":{"type":"string","value":"\xc3"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/bom-not-at-start-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bom-not-at-start ��
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '��'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/utf16-bom[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       �� #   U T F - 1 6   w i t h   B O M 
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got ' U T F - 1 6 '!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/encoding/utf16-comment[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+        #   U T F - 1 6   w i t h o u t   B O M 
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got ' U T F - 1 6 '!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/double-point-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       double-point-2 = 0.1.2
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '
+       '!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/exp-point-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       exp-point-2 = 1.e2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "exp-point-2": {"type": "float", "value": "100"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/exp-point-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       exp-point-3 = 3.e+20
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "exp-point-3": {"type": "float", "value": "3e+20"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/exp-trailing-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       exp-trailing-us = 1e23_
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "exp-trailing-us": {"type": "float", "value": "9.999999999999999e+22"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/exp-trailing-us-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       exp-trailing-us-1 = 1_e2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "exp-trailing-us-1": {"type": "float", "value": "100"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/exp-trailing-us-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       exp-trailing-us-2 = 1.2_e2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "exp-trailing-us-2": {"type": "float", "value": "120"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/inf-capital[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       v = Inf
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "v": {"type": "float", "value": "+Inf"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/leading-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-us = _1.2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-us": {"type": "float", "value": "1.2"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/leading-zero[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero = 03.14
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero": {"type": "float", "value": "3.14"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/leading-zero-neg[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-neg = -03.14
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-neg": {"type": "float", "value": "-3.14"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/leading-zero-plus[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-plus = +03.14
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-plus": {"type": "float", "value": "3.14"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/nan-capital[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       v = NaN
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(389:5) runtime assertion: No.  (No NaN)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/trailing-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       trailing-us = 1.2_
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "trailing-us": {"type": "float", "value": "1.2"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/trailing-us-exp-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       trailing-us-exp-1 = 1_e2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "trailing-us-exp-1": {"type": "float", "value": "100"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/trailing-us-exp-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       trailing-us-exp-2 = 1.2_e2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "trailing-us-exp-2": {"type": "float", "value": "120"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/us-after-point[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       us-after-point = 1._2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "us-after-point": {"type": "float", "value": "1.2"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/float/us-before-point[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       us-before-point = 1_.2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "us-before-point": {"type": "float", "value": "1.2"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/bad-key-syntax[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       tbl = { a = 1, [b] }
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'b'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/double-comma[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {x=3,,y=4}
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {
+           "x": {"type": "integer", "value": "3"},
+           "y": {"type": "integer", "value": "4"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/empty-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {,}
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/empty-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {,
+       }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/empty-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {
+       ,
+       }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/linebreak-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # No newlines are allowed between the curly braces unless they are valid within
+       # a value.
+       simple = { a = 1
+       }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "simple": {
+           "a": {"type": "integer", "value": "1"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/linebreak-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {a=1,
+       b=2}
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {
+           "a": {"type": "integer", "value": "1"},
+           "b": {"type": "integer", "value": "2"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/linebreak-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {a=1
+       ,b=2}
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {
+           "a": {"type": "integer", "value": "1"},
+           "b": {"type": "integer", "value": "2"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/linebreak-4[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       json_like = {
+                 first = "Tom",
+                 last = "Preston-Werner"
+       }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "json_like": {
+           "first": {"type": "string", "value": "Tom"},
+           "last":  {"type": "string", "value": "Preston-Werner"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/no-comma-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       t = {x = 3 y = 4}
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t": {
+           "x": {"type": "integer", "value": "3"},
+           "y": {"type": "integer", "value": "4"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/no-comma-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       arrr = { comma-missing = true valid-toml = false }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "arrr": {
+           "comma-missing": {"type": "bool", "value": "true"},
+           "valid-toml":    {"type": "bool", "value": "false"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/overwrite-02[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a={}
+       # Inline tables are immutable and can't be extended
+       [a.b]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/overwrite-03[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       a = { b = 1 }
+       a.b = 2
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'b'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/overwrite-04[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       inline-t = { nest = {} }
+
+       [[inline-t.nest]]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "inline-t": {"nest": [{}]}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/overwrite-05[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       inline-t = { nest = {} }
+
+       [inline-t.nest]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "inline-t": {
+           "nest": {}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/overwrite-07[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       tab = { inner.table = [{}], inner.table.val = "bad" }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "tab": {
+           "inner": {"table": [{
+             "val": {"type": "string", "value": "bad"}
+           }]}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/overwrite-08[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       tab = { inner = { dog = "best" }, inner.cat = "worst" }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "tab": {
+           "inner": {
+             "cat": {"type": "string", "value": "worst"},
+             "dog": {"type": "string", "value": "best"}
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/inline-table/trailing-comma[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # A terminating comma (also called trailing comma) is not permitted after the
+       # last key/value pair in an inline table
+       abc = { abc = 123, }
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "abc": {
+           "abc": {"type": "integer", "value": "123"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/double-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       double-us = 1__23
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "double-us": {"type": "float", "value": "123"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-us = _123
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-us": {"type": "float", "value": "123"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-zero-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-1 = 01
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-1": {"type": "integer", "value": "1"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-zero-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-2 = 00
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-2": {"type": "integer", "value": "0"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-zero-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-3 = 0_0
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-3": {"type": "float", "value": "0"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-zero-sign-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-sign-1 = -01
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-sign-1": {"type": "float", "value": "-1"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-zero-sign-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-sign-2 = +01
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-sign-2": {"type": "float", "value": "1"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/leading-zero-sign-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       leading-zero-sign-3 = +0_1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "leading-zero-sign-3": {"type": "float", "value": "1"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/text-after-integer[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       answer = 42 the ultimate answer?
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'answer?'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/integer/trailing-us[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       trailing-us = 123_
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "trailing-us": {"type": "float", "value": "123"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/after-array[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[agencies]] owner = "S Cjelli"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "agencies": [{
+           "owner": {"type": "string", "value": "S Cjelli"}
+         }]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/after-table[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [error] this = "should not be here"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "error": {
+           "this": {"type": "string", "value": "should not be here"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/after-value[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       first = "Tom" last = "Preston-Werner" # INVALID
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '"Preston-Werner"'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/duplicate-keys-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       spelling   = "favorite"
+       "spelling" = "favourite"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "spelling": {"type": "string", "value": "favourite"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/duplicate-keys-4[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       spelling   = "favorite"
+       'spelling' = "favourite"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "spelling": {"type": "string", "value": "favourite"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/end-in-escape[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "backslash is the last char\
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777216
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/newline-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "quoted
+       key" = 1
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/newline-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       'quoted
+       key' = 1
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/newline-4[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       """long
+       key""" = 1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "long\nkey": {"type": "integer", "value": "1"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/newline-5[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       '''long
+       key''' = 1
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "long\nkey": {"type": "integer", "value": "1"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/no-eol[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       a = 1 b = 2
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '2'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/quoted-unclosed-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "key = x
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777216
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/quoted-unclosed-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "key
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777216
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/space[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       a b = 1
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'b'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/start-dot[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       .key = 1
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'key'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/without-value-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       key
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '
+       '!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/without-value-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "key"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '
+       '!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/without-value-5[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       fs.fw
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:20) Index 1 is out of range 0..<1
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/key/without-value-7[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       fs.
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:20) Index 1 is out of range 0..<1
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-date/mday-under[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # date-mday       = 2DIGIT  ; 01-28, 01-29, 01-30, 01-31 based on
+       #                           ; month/year
+       d = 2006-01-00
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2006-01-00T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-date/month-under[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # date-month      = 2DIGIT  ; 01-12
+       d = 2007-00-01
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2007-00-01T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-date/trailing-t[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # Date cannot end with trailing T
+       d = 2006-01-30T
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2006-01-30T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-datetime/mday-under[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # date-mday       = 2DIGIT  ; 01-28, 01-29, 01-30, 01-31 based on
+       #                           ; month/year
+       d = 2006-01-00T00:00:00
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2006-01-00T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-datetime/month-under[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # date-month      = 2DIGIT  ; 01-12
+       d = 2007-00-01T00:00:00
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2007-00-01T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-datetime/no-secs[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # No seconds in time.
+       no-secs = 1987-07-05T17:45
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "no-secs": {"type": "datetime", "value": "1987-07-05T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/local-datetime/time-no-leads[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # Leading 0 is always required.
+       d = 2023-10-01T1:32:00Z
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "d": {"type": "datetime", "value": "2023-10-01T00:00:00Z"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/spec/inline-table-2-0[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       [product]
+       type = { name = "Nail" }
+       type.edible = false  # INVALID
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'edible'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/spec/string-4-0[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       str4 = """Here are two quotation marks: "". Simple enough."""
+       str5 = """Here are three quotation marks: """."""  # INVALID
+       str5 = """Here are three quotation marks: ""\"."""
+       str6 = """Here are fifteen quotation marks: ""\"""\"""\"""\"""\"."""
+
+       # "This," she said, "is just a pointless statement."
+       str7 = """"This," she said, "is just a pointless statement.""""
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/spec/table-9-0[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [fruit]
+       apple.color = "red"
+       apple.taste.sweet = true
+
+       [fruit.apple]  # INVALID
+       # [fruit.apple.taste]  # INVALID
+
+       [fruit.apple.texture]  # you can add sub-tables
+       smooth = true
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": {
+           "apple": {
+             "color": {"type": "string", "value": "red"},
+             "taste": {
+               "sweet": {"type": "bool", "value": "true"}
+             },
+             "texture": {
+               "smooth": {"type": "bool", "value": "true"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/spec/table-9-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [fruit]
+       apple.color = "red"
+       apple.taste.sweet = true
+
+       # [fruit.apple]  # INVALID
+       [fruit.apple.taste]  # INVALID
+
+       [fruit.apple.texture]  # you can add sub-tables
+       smooth = true
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": {
+           "apple": {
+             "color": {"type": "string", "value": "red"},
+             "taste": {
+               "sweet": {"type": "bool", "value": "true"}
+             },
+             "texture": {
+               "smooth": {"type": "bool", "value": "true"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-concat[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       no_concat = "first" "second"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "no_concat": {"type": "string", "value": "first"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-escape-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       invalid-escape = "This string has a bad \a escape character."
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "invalid-escape": {"type": "string", "value": "This string has a bad  escape character."}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-escape-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       invalid-escape = "This string has a bad \  escape character."
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "invalid-escape": {"type": "string", "value": "This string has a bad  escape character."}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-escape-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       backslash = "\"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777204
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-multiline[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       multi = "first line
+       second line"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-slash-escape[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       invalid-escape = "This string has a bad \/ escape character."
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "invalid-escape": {"type": "string", "value": "This string has a bad  escape character."}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-uni-esc-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bad-uni-esc-1 = "val\ue"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/misc.odin(34:55) Invalid slice indices 6:10 is out of range 0..<8
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-uni-esc-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bad-uni-esc-2 = "val\Ux"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/misc.odin(43:55) Invalid slice indices 6:14 is out of range 0..<8
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-uni-esc-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bad-uni-esc-4 = "val\U0000"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/misc.odin(43:55) Invalid slice indices 6:14 is out of range 0..<11
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/bad-uni-esc-6[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       bad-uni-esc-6 = "This string contains a non scalar unicode codepoint \uD801"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "bad-uni-esc-6": {"type": "string", "value": "This string contains a non scalar unicode codepoint �"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-multiline-out-of-range-unicode-escape-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = """\UFFFFFFFF"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": "￿"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-multiline-out-of-range-unicode-escape-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = """\U00D80000"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {"a":{"type":"string","value":"\x00"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-multiline-quotes[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       str5 = """Here are three quotation marks: """."""
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-multiline-unknown-escape[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = """\@"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": ""}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-out-of-range-unicode-escape-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = "\UFFFFFFFF"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": "￿"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-out-of-range-unicode-escape-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = "\U00D80000"
+
+[1m     output from parser-cmd (stdout):[0m
+       {"a":{"type":"string","value":"\x00"}}
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/basic-unknown-escape[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = "\@"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": ""}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/literal-multiline-quotes-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = '''6 apostrophes: ''''''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": "6 apostrophes: '''"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/literal-multiline-quotes-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = '''15 apostrophes: ''''''''''''''''''
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": "15 apostrophes: '''''''''''''''"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-bad-escape-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       k = """t\a"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "k": {"type": "string", "value": "t"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-bad-escape-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # \<Space> is not a valid escape.
+       k = """t\ t"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "k": {"type": "string", "value": "tt"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-bad-escape-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # \<Space> is not a valid escape.
+       k = """t\ """
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "k": {"type": "string", "value": "t"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-bad-escape-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       backslash = """\"""
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-escape-space-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = """
+         foo \ \n
+         bar"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": "\n  foo \n\n  bar"}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-escape-space-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       bee = """
+       hee \
+
+       gee \   """
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "bee": {"type": "string", "value": "\nhee \ngee   "}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-lit-no-close-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       invalid = '''
+           this will fail
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-lit-no-close-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       x='''
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-lit-no-close-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       not-closed= '''
+       diibaa
+       blibae ete
+       eteta
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-lit-no-close-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bee = '''
+       hee
+       gee ''
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-no-close-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       invalid = """
+           this will fail
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-no-close-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       x="""
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-no-close-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       not-closed= """
+       diibaa
+       blibae ete
+       eteta
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-no-close-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bee = """
+       hee
+       gee ""
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-no-close-5[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bee = """
+       hee
+       gee\
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(125:9) runtime assertion: Pairing of: ''' or """ was not found
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/multiline-quotes-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a = """6 quotes: """"""
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {"type": "string", "value": "6 quotes: \"\"\""}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/no-close-1[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       no-ending-quote = "One time, at band camp
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777198
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/no-close-2[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       "a-string".must-be = "closed
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777195
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/no-close-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       no-ending-quote = 'One time, at band camp
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777198
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/no-close-4[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       'a-string'.must-be = 'closed
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777195
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/text-after-string[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       string = "Is there life after strings?" No.
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '
+       '!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/string/wrong-close[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       bad-ending-quote = "double and single'
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777197
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/append-to-array-with-dotted-keys[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[a.b]]
+
+       [a]
+       b.y = 2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": [{"b": [{
+           "y": {"type": "integer", "value": "2"}
+         }]}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/append-with-dotted-keys-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # First a.b.c defines a table: a.b.c = {z=9}
+       #
+       # Then we define a.b.c.t = "str" to add a str to the above table, making it:
+       #
+       #   a.b.c = {z=9, t="..."}
+       #
+       # While this makes sense, logically, it was decided this is not valid TOML as
+       # it's too confusing/convoluted.
+       #
+       # See: https://github.com/toml-lang/toml/issues/846
+       #      https://github.com/toml-lang/toml/pull/859
+
+       [a.b.c]
+         z = 9
+
+       [a]
+         b.c.t = "Using dotted keys to add to [a.b.c] after explicitly defining it above is not allowed"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {
+             "c": {
+               "z": {"type": "integer", "value": "9"},
+               "t": {
+                 "type":  "string",
+                 "value": "Using dotted keys to add to [a.b.c] after explicitly defining it above is not allowed"
+               }
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/append-with-dotted-keys-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # This is the same issue as in injection-1.toml, except that nests one level
+       # deeper. See that file for a more complete description.
+
+       [a.b.c.d]
+         z = 9
+
+       [a]
+         b.c.d.k.t = "Using dotted keys to add to [a.b.c.d] after explicitly defining it above is not allowed"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {
+             "c": {
+               "d": {
+                 "z": {"type": "integer", "value": "9"},
+                 "k": {
+                   "t": {
+                     "type":  "string",
+                     "value": "Using dotted keys to add to [a.b.c.d] after explicitly defining it above is not allowed"
+                   }
+                 }
+               }
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/array-empty[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[]]
+       name = "Born to Run"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "]": [{
+           "name": {"type": "string", "value": "Born to Run"}
+         }]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/array-implicit[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       # This test is a bit tricky. It should fail because the first use of
+       # `[[albums.songs]]` without first declaring `albums` implies that `albums`
+       # must be a table. The alternative would be quite weird. Namely, it wouldn't
+       # comply with the TOML spec: "Each double-bracketed sub-table will belong to
+       # the most *recently* defined table element *above* it."
+       #
+       # This is in contrast to the *valid* test, table-array-implicit where
+       # `[[albums.songs]]` works by itself, so long as `[[albums]]` isn't declared
+       # later. (Although, `[albums]` could be.)
+       [[albums.songs]]
+       name = "Glory Days"
+
+       [[albums]]
+       name = "Born in the USA"
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(136:9) runtime assertion: Found a quote without a pair! (Use ''' or """ for multiline quotes or \ to escape a quote)
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/array-no-close-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[albums]
+       name = "Born to Run"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "albums": [{
+           "name": {"type": "string", "value": "Born to Run"}
+         }]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/array-no-close-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[closing-bracket.missing]
+       blaa=2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "closing-bracket": [{"missing": [{
+           "blaa": {"type": "integer", "value": "2"}
+         }]}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [a]
+       b = 1
+
+       [a]
+       c = 2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {"type": "integer", "value": "1"},
+           "c": {"type": "integer", "value": "2"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate-key-dotted-array[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [fruit]
+       apple.color = "red"
+
+       [[fruit.apple]]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": {"apple": [{}]}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate-key-dotted-table[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [fruit]
+       apple.color = "red"
+
+       [fruit.apple] # INVALID
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": {
+           "apple": {
+             "color": {"type": "string", "value": "red"}
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate-key-dotted-table2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [fruit]
+       apple.taste.sweet = true
+
+       [fruit.apple.taste] # INVALID
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": {
+           "apple": {
+             "taste": {
+               "sweet": {"type": "bool", "value": "true"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate-key-table[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [fruit]
+       type = "apple"
+
+       [fruit.type]
+       apple = "yes"
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "fruit": {
+           "apple": {"type": "string", "value": "yes"},
+           "type":  {"type": "string", "value": "apple"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate-table-array[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [tbl]
+       [[tbl]]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "tbl": [{}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/duplicate-table-array2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[tbl]]
+       [tbl]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "tbl": [{}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/empty[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       []
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "]": {}
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/empty-implicit-table[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [naughty..naughty]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "naughty": {
+           "naughty": {}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/llbrace[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [ [table]]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "table": [{}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/nested-brackets-close[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       [a]b]
+       zyx = 42
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got ']'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/no-close-3[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       ["where will it end]
+       name = value
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/tokenizer.odin(140:48) Invalid slice indices 0:-2147483646 is out of range 0..<16777215
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/overwrite-bool-with-array[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       a=true
+       [[a]]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": [{}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/redefine-1[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       # Define b as int, and try to use it as a table: error
+       [a]
+       b = 1
+
+       [a.b]
+       c = 2
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {"type": "integer", "value": "1"},
+           "c": {"type": "integer", "value": "2"}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/redefine-2[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [t1]
+       t2.t3.v = 0
+       [t1.t2]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t1": {
+           "t2": {
+             "t3": {
+               "v": {"type": "integer", "value": "0"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/redefine-3[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [t1]
+       t2.t3.v = 0
+       [t1.t2.t3]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "t1": {
+           "t2": {
+             "t3": {
+               "v": {"type": "integer", "value": "0"}
+             }
+           }
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/rrbrace[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [[table] ]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "table": [{}]
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/super-twice[0m
+[1;38;5;0;48;5;224m [0m    Expected an error, but no error was reported.
+
+[1m     input sent to parser-cmd:[0m
+       [a.b]
+       [a]
+       [a]
+
+[1m     output from parser-cmd (stdout):[0m
+       {
+         "a": {
+           "b": {}
+         }
+       }
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/text-after-table[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       [error] this shouldn't be here
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got 'shouldn't'!
+
+[1m     want:[0m
+       Exit code 1
+
+[1;38;5;0;48;5;224mFAIL[0m [1minvalid/table/whitespace[0m
+[1;38;5;0;48;5;224m [0m    signal: illegal instruction (core dumped)
+
+[1m     input sent to parser-cmd:[0m
+       [invalid key]
+
+[1m     output from parser-cmd (stderr):[0m
+       /home/ulti/src/toml_parser/parser2.odin(288:5) Runtime assertion: When parsing assignment, i.e.: 'a = 5', expected '=' but got '
+       '!
+
+[1m     want:[0m
+       Exit code 1
+
+toml-test v0001-01-01 [./toml_parser]: using embedded tests
+  valid tests: 108 passed, 74 failed
+invalid tests: 173 passed, 198 failed

@@ -17,6 +17,9 @@ package toml
         $ odin build . -out:toml_parser
         $ /tmp/toml-test ./toml_parser
 
+    You may also run the `run-tests` shell script if you are on linux
+    (TODO: add a powershell/python equivalent)
+
     Also, big thanks to tgolsson for suggesting this project
 
 */
@@ -35,6 +38,7 @@ main :: proc() {
     assert(err_read == nil)
 
     table, err := parse(string(data), "<stdin>")
+    logln(err)
     if err.type != .None do os.exit(1) 
     json, _ := json.marshal(marshal(table))
     logln(string(json))

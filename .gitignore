@@ -1,3 +1,6 @@
-no-needless-comp.txt
-toml-test
-toml_parser
+testing/no-needless-comp.txt
+testing/toml-test
+testing/parser
+testing/current.toml
+compile.sh
+ols.json
