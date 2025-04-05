@@ -6,6 +6,7 @@ import "core:c/libc"
 import "core:strconv"
 import "core:strings"
 import "core:reflect"
+import "core:fmt"
 
 Table :: map[string]Type
 List  :: [dynamic] Type // This was added later, so there's code that doesn't use it, that might aswell.
@@ -25,8 +26,17 @@ parse :: proc (
 ) -> (tokens: ^Table, err: Error) { 
     context.allocator = allocator
 
-    raw_tokens := tokenize(data)
+    raw_tokens, tokenizer_err := tokenize(data, file = original_file)
     defer delete_dynamic_array(raw_tokens)
+    if tokenizer_err.type != .None do return nil, tokenizer_err
+
+    when false {
+        for t in raw_tokens {
+            if t == "\n" do logln()
+            else do logf("%q, ", t)
+        }
+    }
+
 
     err_v := validate(raw_tokens, original_file)
     if err_v.type != .None do return tokens, err_v
@@ -216,6 +226,8 @@ parse_list :: proc(tokens: [] string) -> (list: ^List, to_skip: int, err: Error)
         case:
             val, s, e := entype(tokens[i:])
             skip = s - 1
+
+            if _, ok := val.(^Table); ok { skip -= 1 } // fuck me
             
             if e.type != .None {
                 e.line += err.line
@@ -285,7 +297,11 @@ put :: proc(table: ^Table, tokens: [] string) -> (to_skip: int, err: Error) {
     to_skip += skip_w
     
     to_skip += 1 // This is necessary for '='
-    assertf(tokens[1] == "=", "When parsing assignment, i.e.: 'a = 5', expected '=' but got '%s'!", tokens[1])
+    if tokens[1] != "=" {
+        err.type = .Expected_Equals
+        err.more = fmt.aprintf("Instead got: '%q' after key '%q'", tokens[1], tokens[0])
+        return
+    }
 
     val, skip, err_entype := entype(tokens[2:])
     if err_entype.type != .None {

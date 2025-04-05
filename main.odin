@@ -33,14 +33,20 @@ exit :: os.exit
 
 @(private)
 main :: proc() {
+
+    // parse_file("testing/current.toml")
+
     data := make([] u8, 16 * 1024 * 1024)
     count, err_read := os.read(os.stdin, data)
     assert(err_read == nil)
 
-    table, err := parse(string(data), "<stdin>")
-    logln(err)
+    table, err := parse(string(data[:count]), "<stdin>")
+    // if err.type != .None do logln(err)
     if err.type != .None do os.exit(1) 
-    json, _ := json.marshal(marshal(table))
+    idk,  ok := marshal(table)
+    if !ok do return
+    json, _ := json.marshal(idk)
+    if string(json) == "{}" do return
     logln(string(json))
 }
 
@@ -66,20 +72,22 @@ HelpMePlease :: union {
 }
 
 @(private="file")
-marshal :: proc(input: Type) -> HelpMePlease {
+marshal :: proc(input: Type) -> (result: HelpMePlease, ok: bool) {
     output: TestingType
     
     switch value in input {
     case nil: assert(false)
     case ^Table:
+        if value == nil do return result, false
         out := make(map [string] HelpMePlease)
-        for k, v in value do out[k] = marshal(v)
-        return out
+        for k, v in value { out[k] = marshal(v) or_continue }
+        return out, true
 
     case ^List:
+        if value == nil do return result, false
         out := make([] HelpMePlease, len(value))
-        for v, i in value do out[i] = marshal(v)
-        return out
+        for v, i in value { out[i] = marshal(v) or_continue }
+        return out, true
 
     case string: output = { type = "string",  value = value };
     case bool:   output = { type = "bool",    value = fmt.aprint(value) };
@@ -93,5 +101,5 @@ marshal :: proc(input: Type) -> HelpMePlease {
         output.value = result
     }
 
-    return output
+    return output, true
 }

@@ -1,13 +1,38 @@
 package toml
 
 import "core:os"
-import "core:strconv"
+import "core:fmt"
 import "core:strings"
+import "core:strconv"
 import "core:unicode/utf16"
 import "core:unicode/utf8"
 
+@private
+find_newline :: proc(raw: string) -> int {
+    for r, i in raw {
+        if r == '\r' || r == '\n' do return i    
+    }
+    return -1
+}
+
+@private
+shorten_string :: proc(s: string, limit: int, or_newline := true) -> string {
+    min :: proc(a, b: int) -> int {
+        return a if a < b else b
+    }
+
+    newline := find_newline(s) // add another line if you are using (..MAC OS 9) here... fuck it.
+    if newline == -1 do newline = len(s)
+
+    if limit < len(s) || newline < len(s) {
+        return fmt.aprint(s[:min(limit, newline)], "...")
+    }
+
+    return s
+}
+
 // when literal is true, function JUST returns str
-@(private)
+@private
 cleanup_backslashes :: proc(str: string, literal := false) -> string {
     if literal do return str
 
@@ -114,7 +139,7 @@ get_quote_count :: proc(a: string) -> int {
 @(private)
 unquote :: proc(a: string, fluff: ..any) -> string {
     qcount := get_quote_count(a)
-    return a[qcount:len(a) - qcount]
+    return cleanup_backslashes(a[qcount:len(a) - qcount], a[0] == '\'')
 }
 
 // clamp to zero

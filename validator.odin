@@ -5,9 +5,11 @@ import "core:fmt"
 import "core:strings"
 
 ErrorType :: enum {
-    // TOKENIZER ERRORS:
-    // VALIDATOR ERRORS:
     None,
+
+    // TOKENIZER ERRORS:
+    Missing_Quote,
+    // VALIDATOR ERRORS:
     Missing_Key,
     Bad_Name,
     Missing_Value,
@@ -15,6 +17,7 @@ ErrorType :: enum {
     Missing_Bracket,
     Missing_Curly_Bracket,
     Mismatched_Brackets,
+    Expected_Equals,
     Unexpected_Equals_In_Array,
     // PARSER ERRORS:
     Key_Already_Exists,
@@ -52,6 +55,8 @@ format_error :: proc(
     switch err.type {
     case .None:
         return "", false
+    case .Missing_Quote:
+        message = fmt_err(err, "Missing a quote", allocator)
     case .Missing_Key:
         message = fmt_err(err, "Expected the name of a key before '='", allocator)
     case .Bad_Name:
@@ -70,6 +75,8 @@ format_error :: proc(
         message = fmt_err(err, "Too few/too many brackets found", allocator)
     case .Missing_Curly_Bracket:
         message = fmt_err(err, "Too few/too many curly brackets found", allocator)
+    case .Expected_Equals:
+        message = fmt_err(err, "Expected '=' after assignment of a key!", allocator)
     case .Unexpected_Equals_In_Array:
         message = fmt_err(err, "Unexpected equals in an array found", allocator)
     case .Key_Already_Exists:
@@ -171,6 +178,7 @@ validate :: proc(raw_tokens: [dynamic]string, filename: string) -> (err: Error) 
                 }
                 
                 if back(&perens) == '[' && t == "=" {
+                    logln(perens)
                     err.type = .Unexpected_Equals_In_Array
                     err.line += inner_lines
                     return
