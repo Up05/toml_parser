@@ -32,13 +32,13 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
             j := find(this, "\"\"\"", 3)
             if j == -1 { err.more = shorten_string(this, 16); return }
             append(&tokens, this[:j + 3])
-            skip += j
+            skip += j + 2
 
         case starts_with(this, "'''"):
             j := find(this, "'''", 3, false)
             if j == -1 { err.more = shorten_string(this, 16); return }
             append(&tokens, this[:j + 3])
-            skip += j
+            skip += j + 2
         
         case r == '"':
             j := find(this, "\"", 1)
@@ -89,7 +89,7 @@ is_special :: proc(r: u8) -> bool {
 @(private="file")
 leftover :: proc(raw: string) -> string {
     for _, i in raw {
-        if is_space(raw[i]) || is_special(raw[i]) {
+        if is_space(raw[i]) || is_special(raw[i]) || raw[i] == '#' {
             return raw[:i]
         }
     }

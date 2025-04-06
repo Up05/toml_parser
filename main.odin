@@ -41,12 +41,12 @@ main :: proc() {
     assert(err_read == nil)
 
     table, err := parse(string(data[:count]), "<stdin>")
+    // logln(table)
     // if err.type != .None do logln(err)
     if err.type != .None do os.exit(1) 
     idk,  ok := marshal(table)
     if !ok do return
     json, _ := json.marshal(idk)
-    if string(json) == "{}" do return
     logln(string(json))
 }
 
@@ -95,9 +95,19 @@ marshal :: proc(input: Type) -> (result: HelpMePlease, ok: bool) {
     case f64:    output = { type = "float",   value = fmt.aprint(value) };
 
     case dates.Date: 
-        result, err := dates.to_string(date = value, time_sep = 'T')
+        result, err := dates.partial_date_to_string(date = value, time_sep = 'T')
         if err != .NONE do os.exit(1) // I shouldn't do this like that...
-        output.type = "datetime"
+        
+        date := value
+        if date.is_time_only {
+            output.type = "time-local"
+        } else if date.is_date_only {
+            output.type = "date-local"
+        } else if date.is_date_local {
+            output.type = "datetime-local"
+        } else {
+            output.type = "datetime"
+        }
         output.value = result
     }
 

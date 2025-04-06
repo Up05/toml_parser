@@ -1,12 +1,14 @@
 package toml
 
-import "dates" // I have since learned that odin has "core:time::rfc3339_to_components"
-import "core:c/libc"
+// import "dates" // I have since learned that odin has "core:time::rfc3339_to_components"
+// import "core:c/libc"
+// 
+// import "core:strconv"
+// import "core:strings"
+// import "core:reflect"
+// import "core:fmt"
 
-import "core:strconv"
-import "core:strings"
-import "core:reflect"
-import "core:fmt"
+when false {
 
 Table :: map[string]Type
 List  :: [dynamic] Type // This was added later, so there's code that doesn't use it, that might aswell.
@@ -36,7 +38,6 @@ parse :: proc (
             else do logf("%q, ", t)
         }
     }
-
 
     err_v := validate(raw_tokens, original_file)
     if err_v.type != .None do return tokens, err_v
@@ -226,9 +227,8 @@ parse_list :: proc(tokens: [] string) -> (list: ^List, to_skip: int, err: Error)
         case:
             val, s, e := entype(tokens[i:])
             skip = s - 1
+            logln(val, s)
 
-            if _, ok := val.(^Table); ok { skip -= 1 } // fuck me
-            
             if e.type != .None {
                 e.line += err.line
                 return list, to_skip, e
@@ -246,7 +246,7 @@ parse_list :: proc(tokens: [] string) -> (list: ^List, to_skip: int, err: Error)
 @private
 parse_inline_table :: proc(tokens: [] string) -> (section: ^Table, to_skip: int, err: Error) {
     assertf(tokens[0] == "{", "Tried to parse inline table, i.e.: '{...}', but got '%s' as first token...", tokens[0])
-    tokens := tokens[1:]; to_skip += 1 
+    tokens := tokens[1:]; to_skip += 1
     section = new(Table)
 
     skip : int
@@ -260,7 +260,7 @@ parse_inline_table :: proc(tokens: [] string) -> (section: ^Table, to_skip: int,
         switch e {
         case "\n": err.line += 1
         case ",":
-        case "}": to_skip += 1; return 
+        case "}": to_skip = i + 1; logln("TEST"); return 
         case "EOF":
             err.type = .Missing_Curly_Bracket
             err.more = "Missing closing curly bracket"
@@ -268,22 +268,14 @@ parse_inline_table :: proc(tokens: [] string) -> (section: ^Table, to_skip: int,
         case:
             e: Error
             skip, e = put(section, tokens[i:])
+            logln(skip)
             if e.type != .None {
                 e.line += err.line
-                return section, to_skip, e;
+                return section, i, e;
             }
-
-            to_skip += skip
-            skip -= 1 // This is because the current value is already key (tokens[0])
-            // gets "continued" automatically
-
         }
-
-        to_skip += 1
-
     }
     return
-
 }
 
 @private
@@ -416,3 +408,78 @@ parse_float :: proc(tokens: [] string) -> (num: f64, ok: bool, to_skip: int) {
 
     return strconv.parse_f64(to_string(b)), to_skip
 }
+
+
+} // when
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

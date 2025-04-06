@@ -33,9 +33,13 @@ time_separators: []string = {"t", "T", " "}
 offset_separators: []string = {"z", "Z", "+", "-"}
 
 Date :: struct {
+    second:           f32,
+    is_date_local:    bool,
+    is_time_only :    bool,
+    is_date_only :    bool,
+
     year, month, day: int,
     hour, minute:     int,
-    second:           f32,
     offset_hour:      int,
     offset_minute:    int,
 }
@@ -43,12 +47,16 @@ Date :: struct {
 from_string :: proc(date: string) -> (out: Date, err: DateError) {
     date := date
 
+    out.is_date_only = true
+    out.is_time_only = true
+
     ok: bool
 
     // ##############################  D A T E  ##############################
 
     // Because there has to be a leading zero
     if date[4:5] == "-" {
+        out.is_time_only = false
         out.year = parse_int2(date[0:4], .FAILED_AT_YEAR) or_return
 
         out.month = parse_int2(date[5:7], .FAILED_AT_MONTH) or_return
@@ -70,6 +78,7 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
     // ##############################  T I M E  ##############################
 
     if len(date) >= 8 && date[2] == ':' {
+        out.is_date_only = false
         out.hour = parse_int2(date[0:2], .FAILED_AT_HOUR) or_return
         if !between(out.hour, 0, 23) do return out, .HOUR_OUT_OF_BOUNDS
 
@@ -108,6 +117,8 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
                 out.offset_minute *= -1
             }
 
+        } else {
+            out.is_date_local = true
         }
     }
 
@@ -158,6 +169,53 @@ to_string :: proc(
 
     return strings.to_string(b), .NONE
 }
+
+partial_date_to_string :: proc(date: Date, time_sep := ' ',) -> (out: string, err: DateError) {
+    date := date
+    {
+        using date
+        if !between(year, 0, 9999) do return "", .YEAR_OUT_OF_BOUNDS
+        if !between(month, 0, 12) do return "", .MONTH_OUT_OF_BOUNDS
+        if !between(day, 0, days_in_month(year, month)) do return "", .DAY_OUT_OF_BOUNDS
+        if !between(hour, 0, 23) do return "", .HOUR_OUT_OF_BOUNDS
+        if !between(minute, 0, 59) do return "", .MINUTE_OUT_OF_BOUNDS
+        if !between(int(second), 0, 60) do return "", .SECOND_OUT_OF_BOUNDS
+        if !between(offset_hour, -23, 23) do return "", .OFFSET_HOUR_OUT_OF_BOUNDS
+        if !between(offset_minute, -59, 59) do return "", .OFFSET_MINUTE_OUT_OF_BOUNDS
+    }
+    
+    b: strings.Builder
+    strings.builder_init_len_cap(&b, 0, 25)
+
+    if date.year > 0 || date.month > 0 || date.day > 0 {
+        fmt.sbprintf(&b, "%04d-%02d-%02d", date.year, date.month, date.day)
+        strings.write_rune(&b, time_sep)
+    }
+
+    if date.hour > 0 || date.minute > 0 || date.second > 0 {
+        fmt.sbprintf(&b, "%02d:%02d:%02.0f", date.hour, date.minute, date.second)
+    }
+    
+    if date.is_date_local do return strings.to_string(b), .NONE
+
+    else if date.offset_hour == 0 && date.offset_minute == 0 do strings.write_rune(&b, 'Z')
+    else {
+        if date.offset_minute != 0 && sign(date.offset_hour) != sign(date.offset_minute) {
+            date.offset_hour += sign(date.offset_minute)
+            date.offset_minute = 60 - abs(date.offset_minute) // sign doesn't matter, because later prints the abs of date.offset_minute
+            fmt.printf("DATE PARSER WARNING: signs of your Date.offset_hour & Date.offset_minute do not match! " + "Given dates will be safely converted, but may be unexpected. " + "Go to line: %d in: %s to find out more.\n", #line - 5, #file)
+        }
+
+        if date.offset_hour < 0 do strings.write_rune(&b, '-')
+        else do strings.write_rune(&b, '+')
+
+        fmt.sbprintf(&b, "%02d:%02d", abs(date.offset_hour), abs(date.offset_minute))
+    }
+
+    return strings.to_string(b), .NONE
+}
+
+
 // I don't need to test for both the date & the time
 is_date_lax :: proc(date: string) -> bool {
     is_date := true

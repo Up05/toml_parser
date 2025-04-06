@@ -139,7 +139,9 @@ get_quote_count :: proc(a: string) -> int {
 @(private)
 unquote :: proc(a: string, fluff: ..any) -> string {
     qcount := get_quote_count(a)
-    return cleanup_backslashes(a[qcount:len(a) - qcount], a[0] == '\'')
+    unquoted := a[qcount:len(a) - qcount]
+    if len(unquoted) > 0 && unquoted[0] == '\n' do unquoted = unquoted[1:]
+    return cleanup_backslashes(unquoted, a[0] == '\'')
 }
 
 // clamp to zero
@@ -162,4 +164,19 @@ count_newlines :: proc(s: string) -> int {
     }
     return count
 }
+
+// case-insensitive compare
+eq :: proc(a, b: string) -> bool {
+    if len(a) != len(b) do return false
+    #no_bounds_check for i in 0..<len(a) {
+        r1 := a[i]
+        r2 := b[i]
+
+        A := r1 - 32*u8(r1 >= 'a' && r1 <= 'z')
+        B := r2 - 32*u8(r2 >= 'a' && r2 <= 'z')
+        if A != B do return false
+    }
+    return true
+}
+
 
