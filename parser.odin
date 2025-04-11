@@ -25,6 +25,7 @@ g: struct {
     curr : int,
     err  : Error,
     root : ^Table,
+    section: ^Table,
     this : ^Table,
 }
 
@@ -61,11 +62,13 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
         curr = 0,
         err  = { file = original_file }, 
         root = new(Table),
-        this = g.root,
+        section = nil,
+        this = nil,
     }
+    g.section = g.root
+    g.this    = g.root
 
-    tokens   = g.root
-    section := g.root
+    tokens = g.root
     
     for peek() != "" {
         if g.err.type != .None {
@@ -77,34 +80,27 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
             skip()
             continue
         }
-        section = parse_statement(section) 
-        g.this  = section
+        parse_statement() 
+        g.this = g.section
         // logf("%s, ", peek())
     }
     
-
     return
 }
 
 // ==================== STATEMENTS ====================  
 
-parse_statement :: proc(section: ^Table) -> (result: ^Table) {
+parse_statement :: proc() {
     ok: bool
 
-    result, ok = parse_section_list(); if ok do return
-    result, ok = parse_section(); if ok do return
+    ok = parse_section_list(); if ok do return
+    ok = parse_section(); if ok do return
     
-    key: string; value: Type
-    key, value, ok = parse_assign();
-    if ok {
-        section[key] = value
-        return section
-    }
-
-    return
+    ok = parse_assign(); 
+    if !ok do parse_expr()
 }
 
-parse_path :: proc() -> (root_key: string, root: ^Table, last: ^Table, ok: bool) {
+parse_path :: proc() -> (root_key: string, root: ^Table, last: ^Table, ok: bool) {//{{{
     parse_path_inner :: proc(parent: ^Table) -> (table: ^Table, ok: bool) {
         if peek(1) != "." do return
         ok = true
@@ -127,84 +123,76 @@ parse_path :: proc() -> (root_key: string, root: ^Table, last: ^Table, ok: bool)
     ctable, cok := parse_path_inner(root)
     if cok do return root_key, root, ctable, true 
     return root_key, root, root, true
-}
+}//}}}
 
-walk_down :: proc(parent: ^Table) -> (last: ^Table, ok: bool) {
+walk_down :: proc(parent: ^Table) {//{{{
     if peek(1) != "." do return 
-    ok = true
     
     name := unquote(next())
     skip() // '.'
     
-    this: ^Table
-
     #partial switch value in parent[name] {
     case nil: 
-        this = new(Table)
-        parent[name] = this
+        g.this = new(Table)
+        parent[name] = g.this
     case ^Table:
-        // this = value
-        // this[name] = new(Table)
-        // this = this[name].(^Table)
-
-        this, ok = parent[name].(^Table)
-        if !ok { this = new(Table); parent[name] = this}
-        ok = true
+        ok: bool
+        g.this, ok = parent[name].(^Table)
+        if !ok { g.this = new(Table); parent[name] = g.this}
 
     case ^List:
         if len(value^) == 0 {
-            this = new(Table)
-            append(value, this)
+            g.this = new(Table)
+            append(value, g.this)
         } else {
             table, is_table := value[len(value^) - 1].(^Table)
             if !is_table {
                 g.err.type = .Key_Already_Exists
                 g.err.more = name
-                return nil, false
+                return
             }
-            this = table
+            g.this = table
         }
     case:
         g.err.type = .Key_Already_Exists
         g.err.more = name
-        return nil, false
+        return
     }
 
-    child, cok := walk_down(this)
-    if cok { return child, true }
-    return this, true
-}
+    walk_down(g.this)
+}//}}}
 
 
-parse_section_list :: proc() -> (result: ^Table, ok: bool) {//{{{
-    if peek(0) != "[" || peek(1) != "[" do return
+parse_section_list :: proc() -> bool {//{{{
+    if peek(0) != "[" || peek(1) != "[" do return false
     skip(2) // '[' '['
-    ok = true
 
-    parent, has_path := walk_down(g.root)
-    if     !has_path { parent = g.root }
+    g.this = g.root
+    g.section = g.root   
+    walk_down(g.root) // TODO maybe (g.this = parent) in wlak-down_
 
-    name := unquote(next()) // take care with ordering of this btw
-    list : ^List
-    result = new(Table)
+    name   := unquote(next()) // take care with ordering of this btw
+    list   : ^List
+    result := new(Table)
 
-    if name not_in parent {
+    if name not_in g.this {
         list = new(List)
-        parent[name] = list
-    } else if  _, is_list := parent[name].(^List); !is_list {
+        g.this[name] = list
+    } else if  _, is_list := g.this[name].(^List); !is_list {
         g.err.type = .Key_Already_Exists
         g.err.more = name // should be the whole line here, honestly
     } else {
-        list = parent[name].(^List)
+        list = g.this[name].(^List)
     }
     append(list, result) 
 
     skip(2) // ']' ']'
-    return
+    g.section = result
+    return true
 }//}}}
 
 
-put :: proc(parent: ^Table, key: string, value: Type) {
+put :: proc(parent: ^Table, key: string, value: Type) {//{{{
     if key not_in parent {
         parent[key] = value
         return
@@ -226,42 +214,38 @@ put :: proc(parent: ^Table, key: string, value: Type) {
         g.err.type = .Key_Already_Exists
         g.err.more = key
     }
-}
+}//}}}
 
 
-parse_section :: proc() -> (result: ^Table, ok: bool) {
-    if peek() != "[" do return
+parse_section :: proc() -> bool {
+    if peek() != "[" do return false
     skip() // '['
-    ok = true
     
-    parent, has_path := walk_down(g.root)
+    g.this = g.root
+    g.section = g.root   
+    walk_down(g.root)
 
     name  := unquote(next()) // take care with ordering of this btw
+    result := new(Table)
 
-    result = new(Table)
-
-    if has_path { put(parent, name, result) }
-    else        { put(g.root, name, result) }
+    put(g.this, name, result)
 
     skip() // ']'
-    return 
+    g.this = result
+    g.section = g.this
+    return true
 }
 
-parse_assign :: proc() -> (key: string, value: Type, ok: bool) {
-    if peek(1) != "=" && peek(1) != "." do return
-    ok = true
+parse_assign :: proc()  -> bool {
+    if peek(1) != "=" && peek(1) != "." do return false
 
-    root_key, root, current, has_path := parse_path()
+    walk_down(g.this)
 
-    key   = unquote(peek()); skip(2);
-    value = parse_expr()
+    key   := unquote(peek()); skip(2);
+    value := parse_expr()
 
-    if has_path {
-        current[key] = value
-        return root_key, root, true
-    }
-
-    return
+    g.this[key] = value
+    return true
 }
 
 // ==================== EXPRESSIONS ====================  
@@ -386,17 +370,16 @@ parse_table :: proc() -> (result: ^Table, ok: bool) {
 
     result = new(Table)
 
+    temp_this, temp_section := g.this, g.section
     for peek() != "}" && peek() != "" {
         
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }
-        
-        key: string; value: Type
-        key, value, ok = parse_assign()
-        // TODO: parse_path here
-        result[key] = value
 
+        g.this, g.section = result, result
+        parse_assign()
     }
+     g.this, g.section = temp_this, temp_section
 
     skip() // '}'
     return
