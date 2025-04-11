@@ -29,6 +29,8 @@ import "core:os"
 import "core:encoding/json"
 import "dates"
 
+when false {
+
 exit :: os.exit
 
 @(private)
@@ -112,4 +114,7 @@ marshal :: proc(input: Type) -> (result: HelpMePlease, ok: bool) {
     }
 
     return output, true
+}
+
+
 }
