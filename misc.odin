@@ -8,11 +8,12 @@ import "core:unicode/utf16"
 import "core:unicode/utf8"
 
 @private
-find_newline :: proc(raw: string) -> int {
+find_newline :: proc(raw: string) -> (bytes: int, runes: int) {
     for r, i in raw {
-        if r == '\r' || r == '\n' do return i    
+        defer runes += 1
+        if r == '\r' || r == '\n' do return i, runes
     }
-    return -1
+    return -1, -1
 }
 
 @private
@@ -21,7 +22,7 @@ shorten_string :: proc(s: string, limit: int, or_newline := true) -> string {
         return a if a < b else b
     }
 
-    newline := find_newline(s) // add another line if you are using (..MAC OS 9) here... fuck it.
+    newline, _ := find_newline(s) // add another line if you are using (..MAC OS 9) here... fuck it.
     if newline == -1 do newline = len(s)
 
     if limit < len(s) || newline < len(s) {
@@ -43,13 +44,16 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
     to_skip := 0
 
     last: rune
+    escaped: bool
     for r, i in str {
 
         if to_skip > 0 {
             to_skip -= 1
             continue
         }
-        if last == '\\' {
+        // if last == '\\' {
+        if escaped {
+            escaped = false
 
             split_bytes: [4]u8
             parsed_rune: rune
@@ -99,7 +103,11 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
                 write_byte(&b, '\'')
 
             }
-        } else if r != '\\' do write_rune(&b, r)
+        } else if r != '\\' {
+            write_rune(&b, r)
+        } else {
+            escaped = true
+        }
 
         last = r
     }

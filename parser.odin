@@ -65,6 +65,7 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
         section = nil,
         this = nil,
     }
+
     g.section = g.root
     g.this    = g.root
 
@@ -278,6 +279,19 @@ parse_bool :: proc() -> (result: bool, ok: bool) {
 }
 
 parse_float :: proc() -> (result: f64, ok: bool) {
+    has_e_but_not_x :: proc(s: string) -> bool {
+
+        if len(s) > 2 {
+            if s[1] == 'x' || s[1] == 'X' do return false
+        }
+
+        #reverse for r in s {
+            if r == 'e' || r == 'E' do return true
+        }
+        return false
+    }
+
+
     Infinity : f64 = 1e5000
     NaN := transmute(f64) ( transmute(i64) Infinity | 1 ) 
 
@@ -297,7 +311,7 @@ parse_float :: proc() -> (result: f64, ok: bool) {
         defer delete(number)
         skip(3)
         return strconv.parse_f64(cleaned)
-    } else if strings.contains(peek(), "e") || strings.contains(peek(), "E") {
+    } else if has_e_but_not_x(peek()) {
         cleaned, has_alloc := strings.remove_all(next(), "_")
         defer if has_alloc do delete(cleaned)
         return strconv.parse_f64(cleaned)

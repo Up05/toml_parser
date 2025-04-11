@@ -6,7 +6,7 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
     // DBG_PREV_ADDED_TOKEN := ""
 
     skip: int
-    for r, i in raw {
+    outer: for r, i in raw {
         this := raw[i:]
 
         switch {
@@ -24,33 +24,37 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
             append(&tokens, this[:1])
 
         case r == '#':
-            j := find_newline(this)
-            if j == -1 { j = len(this) - 1 }
-            skip += j
+            j, runes := find_newline(this)
+            if j == -1 do return tokens, { .None, "", 0, "" }
+            skip += runes
 
         case starts_with(this, "\"\"\""):
-            j := find(this, "\"\"\"", 3)
+            j, runes := find(this, "\"\"\"", 3)
             if j == -1 { err.more = shorten_string(this, 16); return }
+            j2, runes2 := go_further(this[j + 3:], '"')
+            j += j2; runes += runes2
             append(&tokens, this[:j + 3])
-            skip += j + 2
+            skip += runes + 2
 
         case starts_with(this, "'''"):
-            j := find(this, "'''", 3, false)
+            j, runes := find(this, "'''", 3, false)
             if j == -1 { err.more = shorten_string(this, 16); return }
+            j2, runes2 := go_further(this[j + 3:], '\'')
+            j += j2; runes += runes2
             append(&tokens, this[:j + 3])
-            skip += j + 2
+            skip += runes + 2
         
         case r == '"':
-            j := find(this, "\"", 1)
+            j, runes := find(this, "\"", 1)
             if j == -1 { err.more = shorten_string(this, 16); return }
             append(&tokens, this[:j + 1])
-            skip += j
+            skip += runes
 
         case r == '\'':
-            j := find(this, "'", 1, false)
+            j, runes := find(this, "'", 1, false)
             if j == -1 { err.more = shorten_string(this, 16); return }
             append(&tokens, this[:j + 1])
-            skip += j
+            skip += runes
 
         case:
             key := leftover(this)
@@ -97,16 +101,26 @@ leftover :: proc(raw: string) -> string {
 }
 
 @(private="file")
-find :: proc(a: string, b: string, skip := 0, escape := true) -> int {
+find :: proc(a: string, b: string, skip := 0, escape := true) -> (bytes: int, runes: int) {
     escaped: bool
     for r, i in a[skip:] {
+        defer runes += 1
         if escaped do escaped = false
         else if escape && r == '\\' do escaped = true
-        else if starts_with(a[i + skip:], b) do return i + skip 
-    }
-    return -1
+        else if starts_with(a[i + skip:], b) do return i + skip, runes + skip 
+    }    // "+ skip" here is bad, it would be best to count runes up until "skip"
+    return -1, -1
 }
 
+@(private="file")
+go_further :: proc(a: string, r1: rune) -> (bytes: int, runes: int) {
+    for r2, i in a {
+        if r1 != r2 do return i, runes
+        bytes  = i
+        runes += 1
+    }
+    return 
+}
 
 
 //   import "core:c"

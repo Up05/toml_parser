@@ -38,6 +38,7 @@ parse :: proc (
             else do logf("%q, ", t)
         }
     }
+    logf("%#v\n", raw_tokens)
 
     err_v := validate(raw_tokens, original_file)
     if err_v.type != .None do return tokens, err_v
