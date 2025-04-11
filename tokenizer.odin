@@ -13,7 +13,7 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
         case skip > 0:    
             skip -= 1
 
-        case (r == '\r' && raw[i + 1] != '\n') || r == '\n':
+        case (r == '\r' && len(raw) > i + 1 && raw[i + 1] != '\n') || r == '\n':
             append(&tokens, "\n")
             err.line += 1
 

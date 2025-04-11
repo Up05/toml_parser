@@ -40,6 +40,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
     using strings
     b: Builder
     builder_init_len_cap(&b, 0, len(str))
+    // defer builder_destroy(&b) don't need to, shouldn't even free the original str here
 
     to_skip := 0
 
@@ -60,6 +61,12 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
 
             switch r {
             case 'u':
+                if len(str) < i + 5 {
+                    // This'd happen in the parser, so it's fine, I guess...
+                    g.err.type = .Bad_Value
+                    g.err.more = fmt.aprint("'\\u' does most have hex 4 digits after it in string:", str)
+                    return str
+                }
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 5], 16)
                 if !ok do errf("Tokenizer", "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
                 utf16.decode_to_utf8(split_bytes[:], {u16(char_code)})
@@ -69,6 +76,12 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
 
             case 'U':
                 // this might work... I don't think, that my console/font supports the emojis and I can't be arsed to test it any further...
+                if len(str) < i + 8 {
+                    // This'd happen in the parser, so it's fine, I guess...
+                    g.err.type = .Bad_Value
+                    g.err.more = fmt.aprint("'\\U' does most have hex 8 digits after it in string:", str)
+                    return str
+                }
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
                 if !ok do errf("Tokenizer", "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
                 utf16.decode_to_utf8(

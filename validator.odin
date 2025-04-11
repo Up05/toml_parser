@@ -19,7 +19,10 @@ ErrorType :: enum {
     Mismatched_Brackets,
     Expected_Equals,
     Unexpected_Equals_In_Array,
+
+    Unexpected_Token,
     // PARSER ERRORS:
+    Parser_Is_Stuck,
     Key_Already_Exists,
     Bad_Date,
     Bad_Integer,
@@ -93,6 +96,11 @@ format_error :: proc(
         )
     case .Missing_Newline:
         message = fmt_err(err, "A new line is missing between two key-value pairs", allocator)
+    case .Unexpected_Token:
+        message = fmt_err(err, "Found a token that should not be there.", allocator)
+    case .Parser_Is_Stuck:
+        message = fmt_err(err, "Parser has halted due to being in an infinite loop.", allocator)
+
     }
 
     return message, true
@@ -178,7 +186,6 @@ validate :: proc(raw_tokens: [dynamic]string, filename: string) -> (err: Error) 
                 }
                 
                 if back(&perens) == '[' && t == "=" {
-                    logln(perens)
                     err.type = .Unexpected_Equals_In_Array
                     err.line += inner_lines
                     return

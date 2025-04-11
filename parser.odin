@@ -19,7 +19,7 @@ Type :: union {
     dates.Date,
 }
 
-@(private="file")
+@(private)
 g: struct {
     toks : [] string,
     curr : int,
@@ -71,11 +71,20 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
 
     tokens = g.root
     
+    prev_token: string
+    reps: int
     for peek() != "" {
+        defer prev_token = peek()
+        reps = 0 if prev_token != peek() else reps + 1
+        if reps >= 1000 {
+            g.err.type = .Parser_Is_Stuck
+            g.err.more = peek()
+        }
+
         if g.err.type != .None {
             return nil, g.err
         }
-
+        
         if peek() == "\n" {
             g.err.line += 1
             skip()
@@ -364,7 +373,16 @@ parse_list :: proc() -> (result: ^List, ok: bool) {
     
     result = new(List)
 
+    prev_token: string
+    reps: int
     for peek() != "]" && peek() != "" {
+        defer prev_token = peek()
+        reps = 0 if prev_token != peek() else reps + 1
+        if reps >= 1000 {
+            g.err.type = .Parser_Is_Stuck
+            g.err.more = peek()
+            return
+        }
 
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }
@@ -384,8 +402,17 @@ parse_table :: proc() -> (result: ^Table, ok: bool) {
 
     result = new(Table)
 
+    prev_token: string
+    reps: int
     temp_this, temp_section := g.this, g.section
     for peek() != "}" && peek() != "" {
+        defer prev_token = peek()
+        reps = 0 if prev_token != peek() else reps + 1
+        if reps >= 1000 {
+            g.err.type = .Parser_Is_Stuck
+            g.err.more = peek()
+            return
+        }
         
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }

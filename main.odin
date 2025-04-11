@@ -42,7 +42,7 @@ main :: proc() {
 
     table, err := parse(string(data[:count]), "<stdin>")
     // logln(table)
-    if err.type != .None do logln(err)
+    // if err.type != .None do logln(err)
     if err.type != .None do os.exit(1) 
     idk,  ok := marshal(table)
     if !ok do return
