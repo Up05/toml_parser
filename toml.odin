@@ -4,11 +4,23 @@ import "core:os"
 import "base:intrinsics"
 import "dates"
 
+import "core:fmt"
+
+log     :: fmt.print
+logf    :: fmt.printf
+logln   :: fmt.println
+
+assertf :: fmt.assertf
+
 // Parses the file. You can use print_error(err) for error messages.
 parse_file :: proc(filename: string, allocator := context.allocator) -> (section: ^Table, err: Error) {
     context.allocator = allocator
     blob, ok_file_read := os.read_entire_file_from_filename(filename)
-    if !ok_file_read do errf("Couldn't read file at path: \"%s\"\n", filename)
+    if !ok_file_read {
+        err.type = .Bad_File
+        err.more = filename
+        return nil, err
+    }
 
     section, err = parse(string(blob), filename, allocator)
     delete_slice(blob)

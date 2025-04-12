@@ -1,6 +1,5 @@
 package toml
 
-import "core:os"
 import "core:fmt"
 import "core:strings"
 import "core:strconv"
@@ -34,8 +33,8 @@ shorten_string :: proc(s: string, limit: int, or_newline := true) -> string {
 
 // when literal is true, function JUST returns str
 @private
-cleanup_backslashes :: proc(str: string, literal := false) -> string {
-    if literal do return str
+cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, err: Error) {
+    if literal do return str, err
 
     using strings
     b: Builder
@@ -63,57 +62,53 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
             case 'u':
                 if len(str) < i + 5 {
                     // This'd happen in the parser, so it's fine, I guess...
-                    g.err.type = .Bad_Value
-                    g.err.more = fmt.aprint("'\\u' does most have hex 4 digits after it in string:", str)
-                    return str
+                    err.type = .Bad_Value
+                    err.more = fmt.aprint("'\\u' does most have hex 4 digits after it in string:", str)
+                    return str, err
                 }
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 5], 16)
-                if !ok do errf("Tokenizer", "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
+                if !ok {
+                    err.type = .Bad_Unicode_Char
+                    err.more = fmt.aprintf(
+                        "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
+                    return str, err
+                }
                 utf16.decode_to_utf8(split_bytes[:], {u16(char_code)})
                 parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
                 write_rune(&b, parsed_rune)
                 to_skip = 4
 
             case 'U':
-                // this might work... I don't think, that my console/font supports the emojis and I can't be arsed to test it any further...
-                if len(str) < i + 8 {
-                    // This'd happen in the parser, so it's fine, I guess...
-                    g.err.type = .Bad_Value
-                    g.err.more = fmt.aprint("'\\U' does most have hex 8 digits after it in string:", str)
-                    return str
+                if len(str) < i + 9 {
+                    err.type = .Bad_Value
+                    err.more = fmt.aprint("'\\U' does most have hex 8 digits after it in string:", str)
+                    return str, err
                 }
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
-                if !ok do errf("Tokenizer", "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
-                utf16.decode_to_utf8(
-                    split_bytes[:],
-                    {u16(char_code), u16(char_code >> 16)},
-                ) // at least I don't discard the leftover 16 bytes ¯\_(ツ)_/¯
+                if !ok {
+                    err.type = .Bad_Unicode_Char
+                    err.more = fmt.aprintf(
+                        "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
+                    return str, err
+                }
+                utf16.decode_to_utf8(split_bytes[:], { u16(char_code), u16(char_code >> 16) })
                 parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
                 write_rune(&b, parsed_rune)
                 to_skip = 8
 
             case 'x':
-                // this isn't in the spec?
-                errln(
-                    "Tokenizer",
-                    "\\xXX is not in the spec, you can just use \\u00XX instead.",
-                )
-                to_skip = 2
+                err.type = .Bad_Unicode_Char
+                err.more = fmt.aprint(
+                    "\\xXX is not in the spec, you can just use \\u00XX instead.")
+                return str, err
 
-            case 'n':
-                write_byte(&b, '\n') // this is the most mappable thing ever, but who cares ¯\_(ツ)_/¯
-            case 'r':
-                write_byte(&b, '\r')
-            case 't':
-                write_byte(&b, '\t')
-            case 'b':
-                write_byte(&b, '\b')
-            case '\\':
-                write_byte(&b, '\\')
-            case '"':
-                write_byte(&b, '"')
-            case '\'':
-                write_byte(&b, '\'')
+            case 'n' : write_byte(&b, '\n')
+            case 'r' : write_byte(&b, '\r')
+            case 't' : write_byte(&b, '\t')
+            case 'b' : write_byte(&b, '\b')
+            case '\\': write_byte(&b, '\\')
+            case '"' : write_byte(&b, '"')
+            case '\'': write_byte(&b, '\'')
 
             }
         } else if r != '\\' {
@@ -124,15 +119,29 @@ cleanup_backslashes :: proc(str: string, literal := false) -> string {
 
         last = r
     }
-    return to_string(b)
+    return to_string(b), err
 }
 
-// should be in misc.odin
 @(private)
-equal_any :: proc(a: rune, b: []rune) -> bool {
-    for r in b do if a == r do return true
+any_of :: proc(a: $T, B: ..T) -> bool {
+    for b in B do if a == b do return true
     return false
 }
+
+@private
+is_space :: proc(r: u8) -> bool {
+    SPACE : [4] u8 = { ' ', '\r', '\n', '\t' }
+    return r == SPACE[0] || r == SPACE[1] || r == SPACE[2] || r == SPACE[3]
+    // Nudge nudge
+} 
+
+@private
+is_special :: proc(r: u8) -> bool {
+    SPECIAL : [8] u8 = { '=', ',',  '.',  '[', ']', '{', '}', 0 }
+    return  r == SPECIAL[0] || r == SPECIAL[1] || r == SPECIAL[2] || r == SPECIAL[3] ||
+            r == SPECIAL[4] || r == SPECIAL[5] || r == SPECIAL[6] || r == SPECIAL[7]
+    // Shove shove
+} 
 
 @(private)
 between_any :: proc(a: rune, b: ..rune) -> bool {
@@ -158,35 +167,20 @@ get_quote_count :: proc(a: string) -> int {
 }
 
 @(private)
-unquote :: proc(a: string, fluff: ..any) -> string {
+unquote :: proc(a: string, fluff: ..any) -> (result: string, err: Error) {
     qcount := get_quote_count(a)
     unquoted := a[qcount:len(a) - qcount]
     if len(unquoted) > 0 && unquoted[0] == '\n' do unquoted = unquoted[1:]
     return cleanup_backslashes(unquoted, a[0] == '\'')
 }
 
-// clamp to zero
-@(private)
-cz :: proc(to_clamp: int) -> int {
-    return 0 if to_clamp < 0 else to_clamp
-}
 @(private)
 starts_with :: proc(a, b: string) -> bool {
     return len(a) >= len(b) && a[:len(b)] == b
 }
 
-@(private)
-count_newlines :: proc(s: string) -> int {
-    count: int
-    for r, i in s {
-        count += auto_cast r == '\r'
-        count += auto_cast r == '\n'
-        count -= auto_cast starts_with(s[i:], "\r\n")
-    }
-    return count
-}
-
 // case-insensitive compare
+@private
 eq :: proc(a, b: string) -> bool {
     if len(a) != len(b) do return false
     #no_bounds_check for i in 0..<len(a) {
@@ -200,4 +194,9 @@ eq :: proc(a, b: string) -> bool {
     return true
 }
 
+@private
+is_list :: proc(t: Type) -> bool { 
+    _, is_list := t.(^List); 
+    return is_list
+}
 

@@ -5,7 +5,7 @@ package toml
     This file is for testing. It should be ignored by library users.
  
     For contributors:
-    I have (kind of) integrated these tests:
+    I have (mostly) integrated these tests:
         https://github.com/toml-lang/toml-test
 
     To get them please download/build release 1.5.0:
@@ -18,7 +18,8 @@ package toml
         $ /tmp/toml-test ./toml_parser
 
     You may also run the `run-tests` shell script if you are on linux
-    (TODO: add a powershell/python equivalent)
+    But after installation (I personally) just run all the tests with toml-test
+        or a couple tests with -run 
 
     Also, big thanks to tgolsson for suggesting this project
 
@@ -28,8 +29,6 @@ import "core:fmt"
 import "core:os"
 import "core:encoding/json"
 import "dates"
-
-when false {
 
 exit :: os.exit
 
@@ -116,5 +115,3 @@ marshal :: proc(input: Type) -> (result: HelpMePlease, ok: bool) {
     return output, true
 }
 
-
-}

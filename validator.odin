@@ -2,32 +2,32 @@ package toml
 
 import "base:runtime"
 import "core:fmt"
-import "core:strings"
 
 ErrorType :: enum {
     None,
 
-    // TOKENIZER ERRORS:
-    Missing_Quote,
-    // VALIDATOR ERRORS:
-    Missing_Key,
+    Bad_Date,
+    Bad_File,
+    Bad_Float,
+    Bad_Integer,
     Bad_Name,
-    Missing_Value,
+    Bad_Unicode_Char,
     Bad_Value,
+
+    Mismatched_Brackets,
     Missing_Bracket,
     Missing_Curly_Bracket,
-    Mismatched_Brackets,
-    Expected_Equals,
-    Unexpected_Equals_In_Array,
+    Missing_Key,
+    Missing_Newline,
+    Missing_Quote,
+    Missing_Value,
 
+    Unexpected_Equals_In_Array,
     Unexpected_Token,
-    // PARSER ERRORS:
-    Parser_Is_Stuck,
+
+    Expected_Equals,
     Key_Already_Exists,
-    Bad_Date,
-    Bad_Integer,
-    Bad_Float,
-    Missing_Newline
+    Parser_Is_Stuck,
 }
 
 Error :: struct {
@@ -48,13 +48,7 @@ print_error :: proc(err: Error) -> (fatal: bool) {
     return fatal
 }
 
-format_error :: proc(
-    err: Error,
-    allocator := context.temp_allocator,
-) -> (
-    message: string,
-    fatal: bool,
-) {
+format_error :: proc(err: Error, allocator := context.temp_allocator) -> (message: string, fatal: bool) {
     switch err.type {
     case .None:
         return "", false
@@ -63,11 +57,7 @@ format_error :: proc(
     case .Missing_Key:
         message = fmt_err(err, "Expected the name of a key before '='", allocator)
     case .Bad_Name:
-        message = fmt_err(
-            err,
-            "Bad key/table name found before, please eiter use quotes, or stick to 'A-Za-z0-9_-'",
-            allocator,
-        )
+        message = fmt_err(err, "Bad key/table name found before, use quotes, or only 'A-Za-z0-9_-'", allocator)
     case .Missing_Value:
         message = fmt_err(err, "Expected a value after '='", allocator)
     case .Bad_Value:
@@ -89,18 +79,17 @@ format_error :: proc(
     case .Bad_Integer:
         message = fmt_err(err, "Failed to parse an interger", allocator)
     case .Bad_Float:
-        message = fmt_err(
-            err,
-            "Failed to parse a floating-point number (may be invalid value)",
-            allocator,
-        )
+        message = fmt_err(err, "Failed to parse a floating-point number (may be invalid value)", allocator)
     case .Missing_Newline:
         message = fmt_err(err, "A new line is missing between two key-value pairs", allocator)
     case .Unexpected_Token:
         message = fmt_err(err, "Found a token that should not be there.", allocator)
     case .Parser_Is_Stuck:
         message = fmt_err(err, "Parser has halted due to being in an infinite loop.", allocator)
-
+    case .Bad_Unicode_Char:
+        message = fmt_err(err, "Found an invalid unicode character in string.", allocator)
+    case .Bad_File:
+        message = fmt_err(err, "Toml parser could not read the given file.", allocator)
     }
 
     return message, true
