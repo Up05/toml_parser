@@ -6,7 +6,7 @@ import "core:strings"
 
 import "dates"
 
-Table :: map[string]Type
+Table :: map [string] Type
 List  :: [dynamic] Type
 
 Type :: union {
@@ -19,32 +19,47 @@ Type :: union {
     dates.Date,
 }
 
-@(private)
-g: struct {
-    toks : [] string,
-    curr : int,
-    err  : Error,
-    root : ^Table,
-    section: ^Table,
-    this : ^Table,
+@private
+GlobalData :: struct {
+    toks    : [] string, // all token list
+    curr    : int,       // the current token index
+    err     : Error,     // current error
+    root    : ^Table,    // the root/global table
+    section : ^Table,    // TOML's `[section]` table
+    this    : ^Table,    // TOML's local p.a.t.h or { table = {} } table
+    reps    : int        // for halting upon infinite loops
 }
 
+@private // 8 bytes vs ~128 bytes
+g: ^GlobalData
+
+@private
 peek :: proc(o := 0) -> string {
     if g.curr + o >= len(g.toks) do return ""
+    if g.reps >= 1000 {
+        g.err.type = .Parser_Is_Stuck
+        g.err.more = g.toks[g.curr + o]
+        return ""
+    }
+    g.reps += 1
+
     return g.toks[g.curr + o]
 }
 
-skip :: proc(o := 1) {
+@private
+skip :: proc(o := 1, caller := #caller_location) {
+    assert(o >= 0)
     g.curr += o
-}
+    if o != 0 do g.reps = 0
+}             
 
+@private
 next :: proc() -> string {
     defer skip()
     return peek()
 }
 
-parse :: proc(data: string, original_file: string, allocator := context.allocator
-    ) -> (tokens: ^Table, err: Error) { 
+parse :: proc(data: string, original_file: string, allocator := context.allocator) -> (tokens: ^Table, err: Error) { 
     
     context.allocator = allocator
 
@@ -56,11 +71,12 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
         err := validate(raw_tokens, original_file)
         if err.type != .None do return tokens, err
     }           
-
-    g = {
+    
+    g = new(GlobalData); defer free(g)
+    g^ = {
         toks = raw_tokens[:],
         curr = 0,
-        err  = { file = original_file }, 
+        err  = { line = 1, file = original_file }, 
         root = new(Table),
         section = nil,
         this = nil,
@@ -71,16 +87,7 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
 
     tokens = g.root
     
-    prev_token: string
-    reps: int
     for peek() != "" {
-        defer prev_token = peek()
-        reps = 0 if prev_token != peek() else reps + 1
-        if reps >= 1000 {
-            g.err.type = .Parser_Is_Stuck
-            g.err.more = peek()
-        }
-
         if g.err.type != .None {
             return nil, g.err
         }
@@ -90,11 +97,15 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
             skip()
             continue
         }
+
         parse_statement() 
         g.this = g.section
-        // logf("%s, ", peek())
     }
     
+    if g.err.type != .None {
+        return nil, g.err
+    }
+        
     return
 }
 
@@ -103,57 +114,35 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
 parse_statement :: proc() {
     ok: bool
 
-    ok = parse_section_list(); if ok do return
-    ok = parse_section(); if ok do return
-    
-    ok = parse_assign(); 
-    if !ok do parse_expr()
+    ok = parse_section_list();  if ok do return
+    ok = parse_section();       if ok do return
+    ok = parse_assign();        if ok do return
+
+    parse_expr() // skips orphaned expressions
 }
 
-parse_path :: proc() -> (root_key: string, root: ^Table, last: ^Table, ok: bool) {//{{{
-    parse_path_inner :: proc(parent: ^Table) -> (table: ^Table, ok: bool) {
-        if peek(1) != "." do return
-        ok = true
-
-        key := unquote(next()); skip(1) // '.'
-        table = new(Table)
-
-        parent[key] = table
-        ctable, cok := parse_path_inner(table)
-        if cok do return ctable, true
-
-        return 
-    }
-
-    if peek(1) != "." do return
-    
-    root_key = unquote(next()); skip()
-    root = new(Table)
-
-    ctable, cok := parse_path_inner(root)
-    if cok do return root_key, root, ctable, true 
-    return root_key, root, root, true
-}//}}}
-
-walk_down :: proc(parent: ^Table) {//{{{
+walk_down :: proc(parent: ^Table) {
     if peek(1) != "." do return 
-    
-    name := unquote(next())
+
+    name, err := unquote(next())
+    g.err.type = err.type
+    g.err.more = err.more
+    if err.type != .None do return
     skip() // '.'
     
     #partial switch value in parent[name] {
     case nil: 
-        g.this = new(Table)
-        parent[name] = g.this
+        g.this = new(Table); 
+        parent[name] = g.this; 
+
     case ^Table:
-        ok: bool
-        g.this, ok = parent[name].(^Table)
-        if !ok { g.this = new(Table); parent[name] = g.this}
+        g.this = value
 
     case ^List:
         if len(value^) == 0 {
             g.this = new(Table)
             append(value, g.this)
+
         } else {
             table, is_table := value[len(value^) - 1].(^Table)
             if !is_table {
@@ -163,6 +152,7 @@ walk_down :: proc(parent: ^Table) {//{{{
             }
             g.this = table
         }
+
     case:
         g.err.type = .Key_Already_Exists
         g.err.more = name
@@ -170,10 +160,10 @@ walk_down :: proc(parent: ^Table) {//{{{
     }
 
     walk_down(g.this)
-}//}}}
+}
 
 
-parse_section_list :: proc() -> bool {//{{{
+parse_section_list :: proc() -> bool {
     if peek(0) != "[" || peek(1) != "[" do return false
     skip(2) // '[' '['
 
@@ -181,50 +171,54 @@ parse_section_list :: proc() -> bool {//{{{
     g.section = g.root   
     walk_down(g.root) // TODO maybe (g.this = parent) in wlak-down_
 
-    name   := unquote(next()) // take care with ordering of this btw
+    name, err := unquote(next()) // take care with ordering of this btw
+    g.err.type = err.type
+    g.err.more = err.more
+    if err.type != .None do return true
+
     list   : ^List
     result := new(Table)
 
     if name not_in g.this {
         list = new(List)
         g.this[name] = list
-    } else if  _, is_list := g.this[name].(^List); !is_list {
+
+    } else if !is_list(g.this[name]) {
         g.err.type = .Key_Already_Exists
         g.err.more = name // should be the whole line here, honestly
+
     } else {
         list = g.this[name].(^List)
     }
+
     append(list, result) 
 
     skip(2) // ']' ']'
     g.section = result
     return true
-}//}}}
+}
 
+// put() is only used in parse_section, so it's specialized
+// general version: commit 8910187045028ce13df3214e04ace6071ea89158
+put :: proc(parent: ^Table, key: string, value: ^Table) {
 
-put :: proc(parent: ^Table, key: string, value: Type) {//{{{
-    if key not_in parent {
-        parent[key] = value
-        return
-    }
-
-    #partial switch A in parent[key] {
+    #partial switch existing in parent[key] {
     case ^Table:
-        #partial switch B in value {
-        case ^Table:
-            for k, v in B { A[k] = v }
-            delete_map(B^)
-            B^ = A^
-        case: 
-            A[key] = value
-        }
+        for k, v in value { existing[k] = v }
+        delete_map(value^)
+        value^ = existing^
+
     case ^List:
-        append(A, value)
+        append(existing, value)
+
+    case nil:
+        parent[key] = value
+
     case: 
         g.err.type = .Key_Already_Exists
         g.err.more = key
     }
-}//}}}
+}
 
 
 parse_section :: proc() -> bool {
@@ -235,7 +229,11 @@ parse_section :: proc() -> bool {
     g.section = g.root   
     walk_down(g.root)
 
-    name  := unquote(next()) // take care with ordering of this btw
+    name, err := unquote(next()) // take care with ordering of this btw
+    g.err.type = err.type
+    g.err.more = err.more
+    if err.type != .None do return true
+
     result := new(Table)
 
     put(g.this, name, result)
@@ -251,7 +249,12 @@ parse_assign :: proc()  -> bool {
 
     walk_down(g.this)
 
-    key   := unquote(peek()); skip(2);
+    key, err := unquote(peek())
+    g.err.type = err.type
+    g.err.more = err.more
+    if err.type != .None do return true
+
+    skip(2);
     value := parse_expr()
 
     g.this[key] = value
@@ -263,43 +266,38 @@ parse_assign :: proc()  -> bool {
 
 parse_expr :: proc() -> (result: Type) {
     ok: bool
-    result, ok = parse_string(); if ok do return result
-    result, ok = parse_bool();   if ok do return result
-    result, ok = parse_date();   if ok do return result
-    result, ok = parse_float();  if ok do return result
-    result, ok = parse_int();    if ok do return result
-    result, ok = parse_list();   if ok do return result
-    result, ok = parse_table();  if ok do return result
-
-    return result
+    result, ok = parse_string(); if ok do return
+    result, ok = parse_bool();   if ok do return
+    result, ok = parse_date();   if ok do return
+    result, ok = parse_float();  if ok do return
+    result, ok = parse_int();    if ok do return
+    result, ok = parse_list();   if ok do return
+    result, ok = parse_table();  if ok do return
+    return
 }
 
 parse_string :: proc() -> (result: string, ok: bool) {
-    if len(peek()) == 0 || (peek()[0] != '"' && peek()[0] != '\'') do return 
-    return unquote(next()), true
+    if len(peek()) == 0 do return
+    if r := peek()[0]; !any_of(r, '"', '\'') do return 
+    str, err := unquote(next())
+    g.err.type = err.type
+    g.err.more = err.more
+    return str, true
 }
 
 parse_bool :: proc() -> (result: bool, ok: bool) {
-    defer skip(+1)
-    if peek() == "true"  do return true, true
-    if peek() == "false" do return false, true
-    skip(-1)
+    if peek() == "true"  { skip(); return true, true }
+    if peek() == "false" { skip(); return false, true }
     return false, false
 }
 
 parse_float :: proc() -> (result: f64, ok: bool) {
+
     has_e_but_not_x :: proc(s: string) -> bool {
-
-        if len(s) > 2 {
-            if s[1] == 'x' || s[1] == 'X' do return false
-        }
-
-        #reverse for r in s {
-            if r == 'e' || r == 'E' do return true
-        }
+        if len(s) > 2       { if any_of(s[1], 'x', 'X') do return false }
+        #reverse for r in s { if any_of(r,    'e', 'E') do return true }
         return false
     }
-
 
     Infinity : f64 = 1e5000
     NaN := transmute(f64) ( transmute(i64) Infinity | 1 ) 
@@ -320,6 +318,7 @@ parse_float :: proc() -> (result: f64, ok: bool) {
         defer delete(number)
         skip(3)
         return strconv.parse_f64(cleaned)
+
     } else if has_e_but_not_x(peek()) {
         cleaned, has_alloc := strings.remove_all(next(), "_")
         defer if has_alloc do delete(cleaned)
@@ -373,16 +372,7 @@ parse_list :: proc() -> (result: ^List, ok: bool) {
     
     result = new(List)
 
-    prev_token: string
-    reps: int
-    for peek() != "]" && peek() != "" {
-        defer prev_token = peek()
-        reps = 0 if prev_token != peek() else reps + 1
-        if reps >= 1000 {
-            g.err.type = .Parser_Is_Stuck
-            g.err.more = peek()
-            return
-        }
+    for !any_of(peek(), "]", "") {
 
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }
@@ -402,17 +392,8 @@ parse_table :: proc() -> (result: ^Table, ok: bool) {
 
     result = new(Table)
 
-    prev_token: string
-    reps: int
     temp_this, temp_section := g.this, g.section
-    for peek() != "}" && peek() != "" {
-        defer prev_token = peek()
-        reps = 0 if prev_token != peek() else reps + 1
-        if reps >= 1000 {
-            g.err.type = .Parser_Is_Stuck
-            g.err.more = peek()
-            return
-        }
+    for !any_of(peek(), "}", "") {
         
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }
@@ -420,40 +401,10 @@ parse_table :: proc() -> (result: ^Table, ok: bool) {
         g.this, g.section = result, result
         parse_assign()
     }
-     g.this, g.section = temp_this, temp_section
+    g.this, g.section = temp_this, temp_section
 
     skip() // '}'
     return
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

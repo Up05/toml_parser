@@ -3,6 +3,7 @@ package toml
 import "core:fmt"
 import "core:os"
 import "core:strings"
+import "core:slice"
 
 log     :: fmt.print
 logf    :: fmt.printf

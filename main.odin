@@ -29,7 +29,7 @@ import "core:os"
 import "core:encoding/json"
 import "dates"
 
-when false {
+when true {
 
 exit :: os.exit
 

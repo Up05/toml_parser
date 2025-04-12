@@ -8,7 +8,11 @@ import "dates"
 parse_file :: proc(filename: string, allocator := context.allocator) -> (section: ^Table, err: Error) {
     context.allocator = allocator
     blob, ok_file_read := os.read_entire_file_from_filename(filename)
-    if !ok_file_read do errf("Couldn't read file at path: \"%s\"\n", filename)
+    if !ok_file_read {
+        err.type = .Bad_File
+        err.more = filename
+        return nil, err
+    }
 
     section, err = parse(string(blob), filename, allocator)
     delete_slice(blob)
