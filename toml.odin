@@ -33,7 +33,7 @@ parse_data :: proc(data: []u8, original_filename := "untitled data", allocator :
 }
 
 // Retrieves and type checks the value at path. The last element of path is the actual key.
-//section may be any Table.
+// section may be any Table.
 get :: proc($T: typeid, section: ^Table, path: ..string) -> (val: T, ok: bool)
     where intrinsics.type_is_variant_of(Type, T)
 {
@@ -70,7 +70,7 @@ get_panic :: proc($T: typeid, section: ^Table, path: ..string) -> T
 }
 
 // Currently(2024-06-__), Odin hangs if you simply fmt.print Table
-print_table :: proc(section: ^Table, level := 0){
+print_table :: proc(section: ^Table, level := 0) {
     log("{ ")
     i := 0
     for k, v in section {
@@ -85,7 +85,7 @@ print_table :: proc(section: ^Table, level := 0){
 }
 
 @(private="file")
-print_value :: proc(v: Type, level := 0){
+print_value :: proc(v: Type, level := 0) {
     #partial switch t in v {
     case ^Table:
         print_table(t, level + 1)
