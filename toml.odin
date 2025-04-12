@@ -4,6 +4,14 @@ import "core:os"
 import "base:intrinsics"
 import "dates"
 
+import "core:fmt"
+
+log     :: fmt.print
+logf    :: fmt.printf
+logln   :: fmt.println
+
+assertf :: fmt.assertf
+
 // Parses the file. You can use print_error(err) for error messages.
 parse_file :: proc(filename: string, allocator := context.allocator) -> (section: ^Table, err: Error) {
     context.allocator = allocator

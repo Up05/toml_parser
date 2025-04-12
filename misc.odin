@@ -1,6 +1,5 @@
 package toml
 
-import "core:os"
 import "core:fmt"
 import "core:strings"
 import "core:strconv"

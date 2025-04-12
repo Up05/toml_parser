@@ -2,7 +2,6 @@ package toml
 
 import "base:runtime"
 import "core:fmt"
-import "core:strings"
 
 ErrorType :: enum {
     None,
@@ -19,7 +18,7 @@ ErrorType :: enum {
     Missing_Bracket,
     Missing_Curly_Bracket,
     Missing_Key,
-    Missing_Newline
+    Missing_Newline,
     Missing_Quote,
     Missing_Value,
 

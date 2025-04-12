@@ -66,23 +66,6 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
 
 }
 
-
-
-@(private="file")
-is_space :: proc(r: u8) -> bool {
-    SPACE : [4] u8 = { ' ', '\r', '\n', '\t' }
-    return r == SPACE[0] || r == SPACE[1] || r == SPACE[2] || r == SPACE[3]
-    // Nudge nudge
-} 
-
-@(private="file")
-is_special :: proc(r: u8) -> bool {
-    SPECIAL : [8] u8 = { '=', ',',  '.',  '[', ']', '{', '}', 0 }
-    return  r == SPECIAL[0] || r == SPECIAL[1] || r == SPECIAL[2] || r == SPECIAL[3] ||
-            r == SPECIAL[4] || r == SPECIAL[5] || r == SPECIAL[6] || r == SPECIAL[7]
-    // Shove shove
-} 
-
 @(private="file")
 leftover :: proc(raw: string) -> string {
     for _, i in raw {
