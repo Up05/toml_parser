@@ -38,8 +38,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
 
     using strings
     b: Builder
-    builder_init_len_cap(&b, 0, len(str))
-    // defer builder_destroy(&b) don't need to, shouldn't even free the original str here
+    // defer builder_destroy(&b) // don't need to, shouldn't even free the original str here
 
     to_skip := 0
 
@@ -55,7 +54,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
         if escaped {
             escaped = false
 
-            split_bytes: [4]u8
+            split_bytes: [8]u8
             parsed_rune: rune
 
             switch r {
@@ -73,6 +72,10 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                         "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
                     return str, err
                 }
+                if char_code > 0xD7FF && char_code < 0xE000 {
+                    err.type = .Bad_Unicode_Char
+                    err.more = "Unicode codepoint is not inside the range of valid characters"
+                }
                 utf16.decode_to_utf8(split_bytes[:], {u16(char_code)})
                 parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
                 write_rune(&b, parsed_rune)
@@ -87,9 +90,12 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
                 if !ok {
                     err.type = .Bad_Unicode_Char
-                    err.more = fmt.aprintf(
-                        "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
+                    err.more = fmt.aprintf("%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
                     return str, err
+                }
+                if char_code > 0xD7FF && char_code < 0xE000 || char_code > 0x10FFFF {
+                    err.type = .Bad_Unicode_Char
+                    err.more = "Unicode codepoint is not inside the range of valid characters"                    
                 }
                 utf16.decode_to_utf8(split_bytes[:], { u16(char_code), u16(char_code >> 16) })
                 parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
@@ -106,10 +112,26 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             case 'r' : write_byte(&b, '\r')
             case 't' : write_byte(&b, '\t')
             case 'b' : write_byte(&b, '\b')
+            case 'f' : write_byte(&b, '\f')
             case '\\': write_byte(&b, '\\')
             case '"' : write_byte(&b, '"')
             case '\'': write_byte(&b, '\'')
+            case ' ', '\t', '\r', '\n': 
+                // if (r == ' ' || r == '\t') && len(str) > i + 1 && (str[i + 1] != '\n' || str[i + 1] != '\r') {
+                //     err.type = .Bad_Unicode_Char
+                //     err.more = "cannot escape space in the middle of the line."
+                // }
+                // if len(str) == i + 1 {
+                //     err.type = .Bad_Unicode_Char
+                //     err.more = "Cannot escape space/new line when it is the last character"
+                // }
 
+                for r in str[i + 1:] {
+                    if r == ' ' || r == '\t' || r == '\r' || r == '\n' do to_skip += 1
+                    else do break
+                }
+            case: err.type = .Bad_Unicode_Char
+                  err.more = "Unexpected escape sequence found."
             }
         } else if r != '\\' {
             write_rune(&b, r)
@@ -122,7 +144,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
     return to_string(b), err
 }
 
-@(private)
+@private
 any_of :: proc(a: $T, B: ..T) -> bool {
     for b in B do if a == b do return true
     return false
@@ -143,7 +165,19 @@ is_special :: proc(r: u8) -> bool {
     // Shove shove
 } 
 
-@(private)
+@private
+is_digit :: proc(r: rune, base: int) -> bool {
+    switch base {
+    case 16: return (r >= '0' && r <= '9') || (r >= 'A' && r <= 'F') || (r >= 'a' && r <= 'f')
+    case 10: return r >= '0' && r <= '9'
+    case 8:  return r >= '0' && r <= '7'
+    case 2:  return r >= '0' && r <= '1'
+    }
+    assert(false, "Only bases: 16, 10, 8 and 2 are supported in TOML")
+    return false
+}
+
+@private
 between_any :: proc(a: rune, b: ..rune) -> bool {
     assert(len(b) % 2 == 0)
     for i := 0; i < len(b); i += 2 {
@@ -169,6 +203,24 @@ get_quote_count :: proc(a: string) -> int {
 @(private)
 unquote :: proc(a: string, fluff: ..any) -> (result: string, err: Error) {
     qcount := get_quote_count(a)
+
+    if qcount == 3 {
+        first: rune
+        count: int
+        #reverse for r, i in a {
+            if i < 3 do break
+            if first == 0 do first = r
+            if r == first do count = count + 1
+            else if r == '\\' do count -= 1
+            else do break
+        }
+        if count != 3 && count % 3 == 0 {
+            err.type = .Bad_Value
+            err.more = "The quote count in multiline string is divisible by 3. Lol, get fucked!"
+            return a, err
+        }
+    }
+
     unquoted := a[qcount:len(a) - qcount]
     if len(unquoted) > 0 && unquoted[0] == '\n' do unquoted = unquoted[1:]
     return cleanup_backslashes(unquoted, a[0] == '\'')
@@ -177,6 +229,11 @@ unquote :: proc(a: string, fluff: ..any) -> (result: string, err: Error) {
 @(private)
 starts_with :: proc(a, b: string) -> bool {
     return len(a) >= len(b) && a[:len(b)] == b
+}
+
+@(private)
+ends_with :: proc(a, b: string) -> bool {
+    return len(a) >= len(b) && a[len(a) - len(b):] == b
 }
 
 // case-insensitive compare
@@ -200,3 +257,46 @@ is_list :: proc(t: Type) -> bool {
     return is_list
 }
 
+// // from: https://www.cl.cam.ac.uk/~mgk25/ucs/utf8_check.c
+// is_rune_valid :: proc(r: rune) -> bool {
+//     // if !utf8.valid_rune(r) do return false
+// 
+//     s, n := utf8.encode_rune(r)
+// 
+//     if n == 1 {
+//         /* 0xxxxxxx */
+//         return true
+//     } else if n == 2 {
+//         /* 110XXXXx 10xxxxxx */
+//         if ((s[1] & 0xc0) != 0x80 ||
+//             (s[0] & 0xfe) == 0xc0) {                      /* overlong? */
+//             return true
+//         }
+//     } else if n == 3 {
+//         /* 1110XXXX 10Xxxxxx 10xxxxxx */
+//         if ((s[1] & 0xc0) != 0x80 ||
+//             (s[2] & 0xc0) != 0x80 ||
+//             (s[0] == 0xe0 && (s[1] & 0xe0) == 0x80) ||    /* overlong? */
+//             (s[0] == 0xed && (s[1] & 0xe0) == 0xa0) ||    /* surrogate? */
+//             (s[0] == 0xef && s[1] == 0xbf &&
+//                 (s[2] & 0xfe) == 0xbe)) {                    /* U+FFFE or U+FFFF? */
+//             return true
+//         }
+//     } else if n == 4 {
+//         /* 11110XXX 10XXxxxx 10xxxxxx 10xxxxxx */
+//         if ((s[1] & 0xc0) != 0x80 ||
+//             (s[2] & 0xc0) != 0x80 ||
+//             (s[3] & 0xc0) != 0x80 ||
+//             (s[0] == 0xf0 && (s[1] & 0xf0) == 0x80) ||      /* overlong? */
+//             (s[0] == 0xf4 && s[1] > 0x8f) || s[0] > 0xf4) { /* > U+10FFFF? */
+//             return true
+//         }
+//     } else do return false
+// 
+//     return true
+// }
+
+is_bare_rune_valid :: proc(r: rune) -> bool {
+    if r == '\n' || r == '\r' || r == '\t' do return true
+    return r >= 32
+}

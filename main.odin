@@ -42,9 +42,12 @@ main :: proc() {
     assert(err_read == nil)
 
     table, err := parse(string(data[:count]), "<stdin>")
-    // logln(table)
-    // if err.type != .None do logln(err)
+
+    if any_of("--print-errors", ..os.args) && err.type != .None { logln(err); print_error(err) }
     if err.type != .None do os.exit(1) 
+
+    // if err.type != .None do logln(err)
+
     idk,  ok := marshal(table)
     if !ok do return
     json, _ := json.marshal(idk)
@@ -78,16 +81,16 @@ marshal :: proc(input: Type) -> (result: HelpMePlease, ok: bool) {
     
     switch value in input {
     case nil: assert(false)
-    case ^Table:
-        if value == nil do return result, false
-        out := make(map [string] HelpMePlease)
-        for k, v in value { out[k] = marshal(v) or_continue }
-        return out, true
-
     case ^List:
         if value == nil do return result, false
         out := make([] HelpMePlease, len(value))
         for v, i in value { out[i] = marshal(v) or_continue }
+        return out, true
+
+    case ^Table:
+        if value == nil do return result, false
+        out := make(map [string] HelpMePlease)
+        for k, v in value { out[k] = marshal(v) or_continue }
         return out, true
 
     case string: output = { type = "string",  value = value };

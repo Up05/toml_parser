@@ -3,6 +3,7 @@ package toml
 import "core:strconv"
 import "core:fmt"
 import "core:strings"
+import rt "base:runtime"
 
 import "dates"
 
@@ -27,18 +28,25 @@ GlobalData :: struct {
     root    : ^Table,    // the root/global table
     section : ^Table,    // TOML's `[section]` table
     this    : ^Table,    // TOML's local p.a.t.h or { table = {} } table
-    reps    : int        // for halting upon infinite loops
+    reps    : int,       // for halting upon infinite loops
+    aloc    : rt.Allocator
 }
 
 @private // 8 bytes vs ~128 bytes
 g: ^GlobalData
 
 @private
-peek :: proc(o := 0) -> string {
+peek :: proc(o := 0, caller := #caller_location) -> string {
+    // logln(caller)
     if g.curr + o >= len(g.toks) do return ""
     if g.reps >= 1000 {
-        g.err.type = .Parser_Is_Stuck
-        g.err.more = g.toks[g.curr + o]
+        if g.toks[g.curr + o] == "\n" {
+            g.err.type = .Bad_New_Line
+            g.err.more = "The parser is stuck on an out-of-place new line."
+        } else {
+            g.err.type = .Parser_Is_Stuck
+            g.err.more = fmt.aprintf("Token: '%s' at index: %d", g.toks[g.curr + o], g.curr + o)
+        }
         return ""
     }
     g.reps += 1
@@ -61,29 +69,33 @@ next :: proc() -> string {
 
 parse :: proc(data: string, original_file: string, allocator := context.allocator) -> (tokens: ^Table, err: Error) { 
     
+    {
+        g = new(GlobalData); defer free(g)
+        g^ = {
+            toks = { }, // set right after tokenizer
+            curr = 0,
+            err  = { line = 1, file = original_file }, 
+            root = new(Table),
+            section = nil,
+            this = nil,
+            aloc = allocator,
+        }
+
+        g.section = g.root
+        g.this    = g.root
+    }
+
     context.allocator = allocator
 
     raw_tokens, tokenizer_err := tokenize(data, file = original_file)
+    g.toks = raw_tokens[:]
     defer delete_dynamic_array(raw_tokens)
     if tokenizer_err.type != .None do return nil, tokenizer_err
     
     {
-        err := validate(raw_tokens, original_file)
+        err := validate_new(raw_tokens[:], original_file, allocator)
         if err.type != .None do return tokens, err
-    }           
-    
-    g = new(GlobalData); defer free(g)
-    g^ = {
-        toks = raw_tokens[:],
-        curr = 0,
-        err  = { line = 1, file = original_file }, 
-        root = new(Table),
-        section = nil,
-        this = nil,
     }
-
-    g.section = g.root
-    g.this    = g.root
 
     tokens = g.root
     
@@ -201,13 +213,17 @@ parse_section_list :: proc() -> bool {
 // put() is only used in parse_section, so it's specialized
 // general version: commit 8910187045028ce13df3214e04ace6071ea89158
 put :: proc(parent: ^Table, key: string, value: ^Table) {
+    // I simply ... that I do not understand how toml tables work.
+    // fuck this shit. [[a.b]]\n [a] is somehow valid.
+    // I do not know what the hell is even that.
+    // The valid tests passs. That is what matters.
+    // ...
 
     #partial switch existing in parent[key] {
     case ^Table:
         for k, v in value { existing[k] = v }
         delete_map(value^)
         value^ = existing^
-
     case ^List:
         append(existing, value)
 
@@ -253,9 +269,20 @@ parse_assign :: proc()  -> bool {
     g.err.type = err.type
     g.err.more = err.more
     if err.type != .None do return true
+    
+    if any_of(u8('\n'), ..transmute([] u8)peek()) {
+        g.err.type = .Bad_Name
+        g.err.more = "Keys cannot have raw new lines in them"
+        return true
+    }
 
     skip(2);
     value := parse_expr()
+    
+    if key in g.this {
+        g.err.type = .Key_Already_Exists
+        g.err.more = key
+    }
 
     g.this[key] = value
     return true
@@ -358,6 +385,7 @@ parse_date :: proc() -> (result: dates.Date, ok: bool) {
     if err != .NONE {
         g.err.type = .Bad_Date
         g.err.more = fmt.aprintf("Received error: %v by parsing: '%s' as date\n", err, to_string(full))
+        return
     }
 
     builder_destroy(&full)

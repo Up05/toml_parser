@@ -7,11 +7,25 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
     outer: for r, i in raw {
         this := raw[i:]
 
-        switch { 
+        switch { // by the way, do NOT use the 'fallthrough' keyword
+        case !is_bare_rune_valid(r):
+            err.type = .Bad_Unicode_Char
+            err.more = "Invalid unicode character was found!"
+            return
+
+        case r == '\r' && len(raw) > i + 1 && raw[i + 1] != '\n':
+            err.type = .Bad_Unicode_Char
+            err.more = "carriage returns must be followed by new lines in TOML!"
+            return
+
         case skip > 0: 
             skip -= 1
 
-        case (r == '\r' && len(raw) > i + 1 && raw[i + 1] != '\n') || r == '\n':
+        case r == '\n':
+            append(&tokens, "\n")
+            err.line += 1
+
+        case starts_with(raw[i:], "\r\n"):
             append(&tokens, "\n")
             err.line += 1
 
@@ -24,7 +38,7 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
         case r == '#':
             j, runes := find_newline(this)
             if j == -1 do return tokens, { .None, "", 0, "" }
-            skip += runes
+            skip += runes - 1
 
         case starts_with(this, "\"\"\""):
             j, runes := find(this, "\"\"\"", 3)

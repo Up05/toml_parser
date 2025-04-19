@@ -60,10 +60,10 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
         out.year = parse_int2(date[0:4], .FAILED_AT_YEAR) or_return
 
         out.month = parse_int2(date[5:7], .FAILED_AT_MONTH) or_return
-        if !between(out.month, 0, 12) do return out, .MONTH_OUT_OF_BOUNDS
+        if !between(out.month, 1, 12) do return out, .MONTH_OUT_OF_BOUNDS
 
         out.day = parse_int2(date[8:10], .FAILED_AT_DAY) or_return
-        if !between(out.day, 0, days_in_month(out.year, out.month)) do return out, .DAY_OUT_OF_BOUNDS
+        if !between(out.day, 1, days_in_month(out.year, out.month)) do return out, .DAY_OUT_OF_BOUNDS
 
         if len(date) > 10 {
             if !(len(time_separators) == 0 ||
