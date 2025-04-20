@@ -29,17 +29,17 @@ GlobalData :: struct {
     section : ^Table,    // TOML's `[section]` table
     this    : ^Table,    // TOML's local p.a.t.h or { table = {} } table
     reps    : int,       // for halting upon infinite loops
-    aloc    : rt.Allocator
+    aloc    : rt.Allocator // probably useless, honestly...
 }
 
-@private // 8 bytes vs ~128 bytes
-g: ^GlobalData
+@private // is only allocated when parse() and validate() are working.
+g: ^GlobalData 
 
-@private
-peek :: proc(o := 0, caller := #caller_location) -> string {
-    // logln(caller)
+
+@private // gets a token or an empty string.
+peek :: proc(o := 0) -> string {
     if g.curr + o >= len(g.toks) do return ""
-    if g.reps >= 1000 {
+    if g.reps >= 1000 { // <-- solution to the halting problem!
         if g.toks[g.curr + o] == "\n" {
             make_err(.Bad_New_Line,  "The parser is stuck on an out-of-place new line.")
         } else {
@@ -53,51 +53,51 @@ peek :: proc(o := 0, caller := #caller_location) -> string {
     return g.toks[g.curr + o]
 }
 
-@private
-skip :: proc(o := 1, caller := #caller_location) {
+
+// skips by one or more tokens, the parser & validator CANNOT go back, 
+@private // since my solution to the halting problem may not work then.
+skip :: proc(o := 1) {
     assert(o >= 0)
     g.curr += o
     if o != 0 do g.reps = 0
 }             
 
-@private
+@private // returns the current token and skips to the next token.
 next :: proc() -> string {
     defer skip()
     return peek()
 }
 
 parse :: proc(data: string, original_file: string, allocator := context.allocator) -> (tokens: ^Table, err: Error) { 
-    
-    {
-        g = new(GlobalData); defer free(g)
-        g^ = {
-            toks = { }, // set right after tokenizer
-            curr = 0,
-            err  = { line = 1, file = original_file }, 
-            root = new(Table),
-            section = nil,
-            this = nil,
-            aloc = allocator,
-        }
-
-        g.section = g.root
-        g.this    = g.root
-    }
-
     context.allocator = allocator
-
-    raw_tokens, tokenizer_err := tokenize(data, file = original_file)
-    g.toks = raw_tokens[:]
-    defer delete_dynamic_array(raw_tokens)
-    if tokenizer_err.type != .None do return nil, tokenizer_err
     
-    {
-        err := validate_new(raw_tokens[:], original_file, allocator)
-        if err.type != .None do return tokens, err
+    // === TOKENIZER ===
+    raw_tokens, t_err := tokenize(data, file = original_file)
+    defer delete_dynamic_array(raw_tokens)
+    if t_err.type != .None do return nil, t_err
+    
+    // === VALIDATOR ===
+    v_err := validate(raw_tokens[:], original_file, allocator)
+    if v_err.type != .None do return tokens, v_err
+
+    // === TEMP DATA ===
+    tokens = new(Table)
+
+    initial_data: GlobalData = {
+        toks = raw_tokens[:],
+        err  = { line = 1, file = original_file }, 
+
+        root    = tokens,
+        this    = tokens,
+        section = tokens,
+
+        aloc = allocator,
     }
 
-    tokens = g.root
-    
+    g = &initial_data
+    defer g = nil
+
+    // === MAIN WORK ===
     for peek() != "" {
         if g.err.type != .None {
             return nil, g.err
@@ -132,7 +132,15 @@ parse_statement :: proc() {
     parse_expr() // skips orphaned expressions
 }
 
+// This function is for dotted.paths (stops at.the.NAME)
 walk_down :: proc(parent: ^Table) {
+
+    // ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
+    // ! This is intricate as fuck and I still don't         !
+    // ! really get how it works.                            !
+    // ! PLEASE RUN ALL TESTS IF YOU CHANGE THIS AT ALL.     !
+    // ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
+
     if peek(1) != "." do return 
 
     name, err := unquote(next())
@@ -212,11 +220,11 @@ parse_section_list :: proc() -> bool {
 // put() is only used in parse_section, so it's specialized
 // general version: commit 8910187045028ce13df3214e04ace6071ea89158
 put :: proc(parent: ^Table, key: string, value: ^Table) {
-    // I simply ... that I do not understand how toml tables work.
-    // fuck this shit. [[a.b]]\n [a] is somehow valid.
-    // I do not know what the hell is even that.
-    // The valid tests passs. That is what matters.
-    // ...
+
+    // I simply admit that I do not understand how tables work...
+    // fuck this shit! [[a.b]]\n [a] is somehow valid..?
+    // I do not know what the hell is even that...
+    // The valid tests pass. That is what matters...
 
     #partial switch existing in parent[key] {
     case ^Table:
@@ -233,7 +241,6 @@ put :: proc(parent: ^Table, key: string, value: ^Table) {
         make_err(.Key_Already_Exists, key)
     }
 }
-
 
 parse_section :: proc() -> bool {
     if peek() != "[" do return false
@@ -326,13 +333,13 @@ parse_float :: proc() -> (result: f64, ok: bool) {
     NaN := transmute(f64) ( transmute(i64) Infinity | 1 ) 
 
     if len(peek()) == 4 {
-        if peek()[0] == '-' { if eq(peek()[1:], "inf") { skip(); return -Infinity, true } }
-        if peek()[0] == '+' { if eq(peek()[1:], "inf") { skip(); return +Infinity, true } }
-        if eq(peek()[1:], "nan") { skip(); return NaN, true }
+        if peek()[0] == '-' { if peek()[1:] == "inf" { skip(); return -Infinity, true } }
+        if peek()[0] == '+' { if peek()[1:] == "inf" { skip(); return +Infinity, true } }
+        if peek()[1:] == "nan" { skip(); return NaN, true }
     }
 
-    if eq(peek(), "nan") { skip(); return NaN, true }
-    if eq(peek(), "inf") { skip(); return Infinity, true }
+    if peek() == "nan" { skip(); return NaN, true }
+    if peek() == "inf" { skip(); return Infinity, true }
 
     if peek(1) == "." {
         number := fmt.aprint(peek(), ".", peek(2), sep = "")
@@ -366,13 +373,14 @@ parse_date :: proc() -> (result: dates.Date, ok: bool) {
     full: Builder
     write_string(&full, next())
     
+    // is date, time or both?
     if dates.is_date_lax(peek()) {
         write_rune(&full, ' ')
         write_string(&full, next())
     }
 
-    if peek(0) == "." {
-        write_string(&full, next())
+    if peek() == "." {
+        write_byte(&full, '.'); skip()
         write_string(&full, next())
     }
 

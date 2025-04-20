@@ -107,6 +107,19 @@ I'm pretty sure it does not anymore.
 print_value :: proc(v: Type, level := 0) 
 ```
 
+## Freeing memory
+
+```odin
+deep_delete :: proc(type: Type, allocator := context.allocator) -> (err: runtime.Allocator_Error)
+```
+Recursively frees parser's output
+
+```odin
+delete_error :: proc(err: ^Error)
+```
+Simply, frees the error.  
+*Filename is not freed, because the parser only slices it.*
+
 ## Testing (internal)
 
 ```odin
@@ -116,20 +129,23 @@ main :: proc()
 This is here for `toml-test`. It takes in the TOML from `stdin`, parses it, marshal's it to JSON and prints the JSON to stdout. 
 Unless there was an error, in which case the program does not print anything and only exits with exit code `1`. 
 
-# TODO
+*Some tests fail because of how odin formats floats & non-printable characters, cba to fix that and it doesn't matter.*
 
-1. Add a `destroy_table` function that recursivelly frees all memory allocated by the parser.
+# Files
 
-# TIDO (a.k.a. Things I will never DO)
+```sh
+main.odin       # an internal file for testing
+toml.odin       # the main user-facing file
+misc.odin       # a couple miscellaneous functions
 
-1. Technically, the parser is very loosey goosey, you can have double commas, you can have no commas, you can have sections with empty names and so on... But just don't, I guess.
+tokenizer.odin  # rips text apart by space and special symbols (string -> [] string)
+validator.odin  # checks whether given TOML is valid or not    ([] string -> Error?)
+parser.odin     # parses tokens into the recursive Type union  ([] string -> Type)
 
-2. Multiline strings 
+tests/          # odin core:testing tests (currently, there is 1...)
+dates/          # my small RFC3339 date parsing library
+mod.pkg         # package info for the odin package website (can't find it right now...)
 ```
-_ = """ New line \
 
-    test
-```
-should produce:  `{ _ = " New line test" }` I can't be arsed to fix this... It's not that difficult though, you just make another function after/before `cleanup_backslashes`.
 
-3. Some tests fail because of how odin formats floats & non-printable characters, cba to fix that and it doesn't matter.
+

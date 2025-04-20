@@ -56,7 +56,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             to_skip -= 1
             continue
         }
-        // if last == '\\' {
+        // basically, if last == '\\' {
         if escaped {
             escaped = false
 
@@ -64,7 +64,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             parsed_rune: rune
 
             switch r {
-            case 'u':
+            case 'u': // for \uXXXX
                 if len(str) < i + 5 {
                     set_err(&err, .Bad_Unicode_Char, "'\\u' does most have hex 4 digits after it in string:", str)
                     return str, err
@@ -83,7 +83,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 write_rune(&b, parsed_rune)
                 to_skip = 4
 
-            case 'U':
+            case 'U': // for \UXXXXXXXX
                 if len(str) < i + 9 {
                     set_err(&err, .Bad_Unicode_Char, "'\\U' does most have hex 8 digits after it in string:", str)
                     return str, err
@@ -123,7 +123,8 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 //     err.type = .Bad_Unicode_Char
                 //     err.more = "Cannot escape space/new line when it is the last character"
                 // }
-
+                
+                // Fun thing for multiline line string line escaping.
                 for r in str[i + 1:] {
                     if r == ' ' || r == '\t' || r == '\r' || r == '\n' do to_skip += 1
                     else do break
@@ -141,7 +142,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
         last = r
     }
     delete_string(str)
-    defer b_destroy(&b)
+    defer b_destroy(&b) // you can't free a builder that has been cast to string
     return strings.clone(to_string(b)), err
 }
 

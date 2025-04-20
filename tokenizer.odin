@@ -8,21 +8,26 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
         this := raw[i:]
 
         switch { // by the way, do NOT use the 'fallthrough' keyword
+        // makes more invalid tests pass
         case !is_bare_rune_valid(r):
             set_err(&err, .Bad_Unicode_Char, "'%v'", r)
             return
 
+        // throws error if only a carriage return is found, I guess, fuck macOS ..9?
         case r == '\r' && len(raw) > i + 1 && raw[i + 1] != '\n':
             set_err(&err, .Bad_Unicode_Char, "carriage returns must be followed by new lines in TOML!")
             return
 
+        // skips until the end of e.g.: string and comment (this replaces having state.)
         case skip > 0: 
             skip -= 1
 
+        // unix new lines
         case r == '\n':
             append(&tokens, "\n")
             err.line += 1
 
+        // windows new lines
         case starts_with(raw[i:], "\r\n"):
             append(&tokens, "\n")
             err.line += 1
@@ -33,11 +38,13 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
         case is_special(this[0]):
             append(&tokens, this[:1])
 
+        // removes a comment (in one go)
         case r == '#':
             j, runes := find_newline(this)
             if j == -1 do return tokens, { }
             skip += runes - 1
 
+        // ============ START OF STRINGS ============ 
         case starts_with(this, "\"\"\""):
             j, runes := find(this, "\"\"\"", 3)
             if j == -1 do return tokens, set_err(&err, .Missing_Quote, shorten_string(this, 16))
@@ -65,7 +72,10 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
             if j == -1 do return tokens, set_err(&err, .Missing_Quote, shorten_string(this, 16))
             append(&tokens, this[:j + 1])
             skip += runes
+        // ============  END OF STRINGS  ============ 
 
+        // tokenizes all leftover things (in one go)
+        // this is "text", numbers & so on
         case:
             key := leftover(this)
             if len(key) == 0 do return tokens, set_err(&err, .None, shorten_string(this, 1))
