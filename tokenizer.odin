@@ -1,7 +1,7 @@
 package toml
 
 tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] string, err: Error) {
-    err = { .Missing_Quote, file, 1, "" }
+    err = { file = file, line = 1 }
 
     skip: int
     outer: for r, i in raw {
@@ -9,13 +9,11 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
 
         switch { // by the way, do NOT use the 'fallthrough' keyword
         case !is_bare_rune_valid(r):
-            err.type = .Bad_Unicode_Char
-            err.more = "Invalid unicode character was found!"
+            set_err(&err, .Bad_Unicode_Char, "'%v'", r)
             return
 
         case r == '\r' && len(raw) > i + 1 && raw[i + 1] != '\n':
-            err.type = .Bad_Unicode_Char
-            err.more = "carriage returns must be followed by new lines in TOML!"
+            set_err(&err, .Bad_Unicode_Char, "carriage returns must be followed by new lines in TOML!")
             return
 
         case skip > 0: 
@@ -37,12 +35,12 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
 
         case r == '#':
             j, runes := find_newline(this)
-            if j == -1 do return tokens, { .None, "", 0, "" }
+            if j == -1 do return tokens, { }
             skip += runes - 1
 
         case starts_with(this, "\"\"\""):
             j, runes := find(this, "\"\"\"", 3)
-            if j == -1 { err.more = shorten_string(this, 16); return }
+            if j == -1 do return tokens, set_err(&err, .Missing_Quote, shorten_string(this, 16))
             j2, runes2 := go_further(this[j + 3:], '"')
             j += j2; runes += runes2
             append(&tokens, this[:j + 3])
@@ -50,7 +48,7 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
 
         case starts_with(this, "'''"):
             j, runes := find(this, "'''", 3, false)
-            if j == -1 { err.more = shorten_string(this, 16); return }
+            if j == -1 do return tokens, set_err(&err, .Missing_Quote, shorten_string(this, 16))
             j2, runes2 := go_further(this[j + 3:], '\'')
             j += j2; runes += runes2
             append(&tokens, this[:j + 3])
@@ -58,25 +56,25 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
         
         case r == '"':
             j, runes := find(this, "\"", 1)
-            if j == -1 { err.more = shorten_string(this, 16); return }
+            if j == -1 do return tokens, set_err(&err, .Missing_Quote, shorten_string(this, 16))
             append(&tokens, this[:j + 1])
             skip += runes
 
         case r == '\'':
             j, runes := find(this, "'", 1, false)
-            if j == -1 { err.more = shorten_string(this, 16); return }
+            if j == -1 do return tokens, set_err(&err, .Missing_Quote, shorten_string(this, 16))
             append(&tokens, this[:j + 1])
             skip += runes
 
         case:
             key := leftover(this)
-            if len(key) == 0 { err.more = shorten_string(this, 1); return }
+            if len(key) == 0 do return tokens, set_err(&err, .None, shorten_string(this, 1))
             append(&tokens, key)
             skip += len(key) - 1
         }
     }
 
-    return tokens, { .None, "", 0, "" }
+    return tokens, err
 
 }
 
@@ -112,3 +110,9 @@ go_further :: proc(a: string, r1: rune) -> (bytes: int, runes: int) {
     return 
 }
 
+@(private="file")
+set_err :: proc(err: ^Error, type: ErrorType, more_fmt: string, more_args: ..any) -> Error {
+    err.type = type
+    b_printf(&err.more, more_fmt, ..more_args)
+    return err^
+}

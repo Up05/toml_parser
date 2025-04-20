@@ -34,9 +34,13 @@ ErrorType :: enum {
 
 Error :: struct {
     type: ErrorType,
-    line: int,
+    line: int,    
     file: string,
-    more: string 
+    more: Builder `fmt:"v, type"`, 
+}
+
+delete_error :: proc(err: ^Error) {
+    if err.type != .None do b_destroy(&err.more)
 }
 
 // This may also be a warning!
@@ -74,10 +78,10 @@ format_error :: proc(err: Error, allocator := context.allocator) -> (message: st
         .Unexpected_Token   = "Found a token that should not be there.",
     }
 
-    return fmt.aprintf("%s:%d %s! %s\n", err.file, err.line + 1, descriptions[err.type], err.more), true
+    return fmt.aprintf("%s:%d %s! %s\n", err.file, err.line + 1, descriptions[err.type], err.more.buf[:]), true
 }
 
-skip_newline :: proc() { for peek() == "\n" { g.err.line += 1; skip() } }
+skip_newline :: proc() -> (ok: bool) { ok = peek() == "\n"; for peek() == "\n" { g.err.line += 1; skip() }; return }
 
 validate_new :: proc(raw_tokens: [] string, file: string, allocator := context.allocator) -> Error {
 
@@ -92,9 +96,9 @@ validate_new :: proc(raw_tokens: [] string, file: string, allocator := context.a
     defer g = snapshot
 
     for peek() != "" {
-        skip_newline()
-
-        if validate_stmt() { err_if_not(peek() == "" || peek() == "\n", .Missing_Newline, "Found a missing new line between statements.") }
+        if !validate_stmt() {
+            make_err(.Unexpected_Token, "Could not validate the (assumed to be) statement: %s", peek())
+        }
         if g.err.type != .None do break
     }
 
@@ -103,7 +107,9 @@ validate_new :: proc(raw_tokens: [] string, file: string, allocator := context.a
 }
 
 validate_stmt :: proc() -> bool {
-    return validate_array() || validate_table() || validate_assign()    
+    return skip_newline()   ||   (validate_array() || validate_table() || validate_assign())   &&    
+
+           !err_if_not(peek() == "" || peek() == "\n", .Missing_Newline, "Found a missing new line between statements.") 
 }
 
 validate_array :: proc() -> bool {
@@ -359,6 +365,7 @@ validate_number :: proc() -> bool {//{{{
     prev: rune
     prev = 0
     for r, i in main {
+        if prev == 0 && !is_digit(r, base) do return false
         if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in number", r) do return false
         if !validate_underscores(r, prev, i == len(main) - 1) do return false
         prev = r
@@ -366,14 +373,16 @@ validate_number :: proc() -> bool {//{{{
 
     prev = 0
     for r, i in fraction {
-        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in number", r) do return false
+        if prev == 0 && !is_digit(r, base) do return false
+        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in decimal part of number ", r) do return false
         if !validate_underscores(r, prev, i == len(fraction) - 1) do return false
         prev = r
     }
     
     prev = 0
     for r, i in exponent {
-        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in number", r) do return false
+        if prev == 0 && !is_digit(r, base) do return false
+        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in exponent part of number", r) do return false
         if !validate_underscores(r, prev, i == len(exponent) - 1) do return false
         prev = r
     }
@@ -386,7 +395,6 @@ validate_number :: proc() -> bool {//{{{
 validate_inline_list :: proc() -> bool {  //{{{
     if peek() != "[" do return false
     skip() // '['
-
 
     last_was_comma: bool
     for {
@@ -437,12 +445,15 @@ validate_inline_table :: proc() -> bool {//{{{
     return !err_if_not(next() == "}", .Missing_Bracket, "'}' missing in inline table declaration")
 }//}}}
 
-
+@(private="file")
 make_err :: proc(type: ErrorType, more_fmt: string, more_args: ..any) {
     g.err.type = type
-    g.err.more = fmt.aprintf(more_fmt, ..more_args, allocator = g.aloc)
+    context.allocator = g.aloc
+    b_reset(&g.err.more)
+    b_printf(&g.err.more, more_fmt, ..more_args)
 }
 
+@(private="file")
 err_if_not :: proc(cond: bool, type: ErrorType, more_fmt: string, more_args: ..any) -> bool {
     if !cond do make_err(type, more_fmt, ..more_args)
     return !cond

@@ -36,6 +36,11 @@ shorten_string :: proc(s: string, limit: int, or_newline := true) -> string {
 cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, err: Error) {
     if literal do return str, err
 
+    set_err :: proc(err: ^Error, type: ErrorType, more_fmt: string, more_args: ..any) {
+        err.type = type
+        b_printf(&err.more, more_fmt, ..more_args)
+    }
+
     using strings
     b: Builder
     // defer builder_destroy(&b) // don't need to, shouldn't even free the original str here
@@ -60,21 +65,17 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             switch r {
             case 'u':
                 if len(str) < i + 5 {
-                    // This'd happen in the parser, so it's fine, I guess...
-                    err.type = .Bad_Value
-                    err.more = fmt.aprint("'\\u' does most have hex 4 digits after it in string:", str)
+                    set_err(&err, .Bad_Unicode_Char, "'\\u' does most have hex 4 digits after it in string:", str)
                     return str, err
                 }
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 5], 16)
                 if !ok {
-                    err.type = .Bad_Unicode_Char
-                    err.more = fmt.aprintf(
-                        "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
+                    set_err(&err, .Bad_Unicode_Char, "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
                     return str, err
                 }
                 if char_code > 0xD7FF && char_code < 0xE000 {
-                    err.type = .Bad_Unicode_Char
-                    err.more = "Unicode codepoint is not inside the range of valid characters"
+                    set_err(&err, .Bad_Unicode_Char, "Unicode codepoint is not inside the range of valid characters")
+                    return str, err
                 }
                 utf16.decode_to_utf8(split_bytes[:], {u16(char_code)})
                 parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
@@ -83,19 +84,17 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
 
             case 'U':
                 if len(str) < i + 9 {
-                    err.type = .Bad_Value
-                    err.more = fmt.aprint("'\\U' does most have hex 8 digits after it in string:", str)
+                    set_err(&err, .Bad_Unicode_Char, "'\\U' does most have hex 8 digits after it in string:", str)
                     return str, err
                 }
                 char_code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
                 if !ok {
-                    err.type = .Bad_Unicode_Char
-                    err.more = fmt.aprintf("%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
+                    set_err(&err, .Bad_Unicode_Char, "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
                     return str, err
                 }
                 if char_code > 0xD7FF && char_code < 0xE000 || char_code > 0x10FFFF {
-                    err.type = .Bad_Unicode_Char
-                    err.more = "Unicode codepoint is not inside the range of valid characters"                    
+                    set_err(&err, .Bad_Unicode_Char, "Unicode codepoint is not inside the range of valid characters")
+                    return str, err
                 }
                 utf16.decode_to_utf8(split_bytes[:], { u16(char_code), u16(char_code >> 16) })
                 parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
@@ -103,9 +102,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 to_skip = 8
 
             case 'x':
-                err.type = .Bad_Unicode_Char
-                err.more = fmt.aprint(
-                    "\\xXX is not in the spec, you can just use \\u00XX instead.")
+                set_err(&err, .Bad_Unicode_Char, "\\xXX is not in the spec, you can just use \\u00XX instead.")
                 return str, err
 
             case 'n' : write_byte(&b, '\n')
@@ -130,8 +127,9 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                     if r == ' ' || r == '\t' || r == '\r' || r == '\n' do to_skip += 1
                     else do break
                 }
-            case: err.type = .Bad_Unicode_Char
-                  err.more = "Unexpected escape sequence found."
+            case: 
+                set_err(&err, .Bad_Unicode_Char, "Unexpected escape sequence found."); 
+                return str, err
             }
         } else if r != '\\' {
             write_rune(&b, r)
@@ -216,7 +214,7 @@ unquote :: proc(a: string, fluff: ..any) -> (result: string, err: Error) {
         }
         if count != 3 && count % 3 == 0 {
             err.type = .Bad_Value
-            err.more = "The quote count in multiline string is divisible by 3. Lol, get fucked!"
+            b_write_string(&err.more, "The quote count in multiline string is divisible by 3. Lol, get fucked!")
             return a, err
         }
     }

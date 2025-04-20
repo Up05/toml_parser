@@ -1,5 +1,6 @@
 package toml
 
+import "core:strings"
 import "core:os"
 import "base:intrinsics"
 import "dates"
@@ -12,13 +13,23 @@ logln   :: fmt.println
 
 assertf :: fmt.assertf
 
+Builder        :: strings.Builder
+b_destroy      :: strings.builder_destroy
+b_reset        :: strings.builder_reset
+b_write_string :: strings.write_string
+b_write_rune   :: strings.write_rune
+b_write_byte   :: strings.write_byte
+b_to_string    :: strings.to_string
+b_print        :: fmt.sbprint
+b_printf       :: fmt.sbprintf
+
 // Parses the file. You can use print_error(err) for error messages.
 parse_file :: proc(filename: string, allocator := context.allocator) -> (section: ^Table, err: Error) {
     context.allocator = allocator
     blob, ok_file_read := os.read_entire_file_from_filename(filename)
     if !ok_file_read {
         err.type = .Bad_File
-        err.more = filename
+        b_write_string(&err.more, filename)
         return nil, err
     }
 

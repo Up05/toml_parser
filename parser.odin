@@ -41,11 +41,10 @@ peek :: proc(o := 0, caller := #caller_location) -> string {
     if g.curr + o >= len(g.toks) do return ""
     if g.reps >= 1000 {
         if g.toks[g.curr + o] == "\n" {
-            g.err.type = .Bad_New_Line
-            g.err.more = "The parser is stuck on an out-of-place new line."
+            make_err(.Bad_New_Line,  "The parser is stuck on an out-of-place new line.")
         } else {
             g.err.type = .Parser_Is_Stuck
-            g.err.more = fmt.aprintf("Token: '%s' at index: %d", g.toks[g.curr + o], g.curr + o)
+            b_printf(&g.err.more, "Token: '%s' at index: %d", g.toks[g.curr + o], g.curr + o)
         }
         return ""
     }
@@ -158,16 +157,14 @@ walk_down :: proc(parent: ^Table) {
         } else {
             table, is_table := value[len(value^) - 1].(^Table)
             if !is_table {
-                g.err.type = .Key_Already_Exists
-                g.err.more = name
+                make_err(.Key_Already_Exists, name)
                 return
             }
             g.this = table
         }
 
     case:
-        g.err.type = .Key_Already_Exists
-        g.err.more = name
+        make_err(.Key_Already_Exists, name)
         return
     }
 
@@ -181,7 +178,7 @@ parse_section_list :: proc() -> bool {
 
     g.this = g.root
     g.section = g.root   
-    walk_down(g.root) // TODO maybe (g.this = parent) in wlak-down_
+    walk_down(g.root) 
 
     name, err := unquote(next()) // take care with ordering of this btw
     g.err.type = err.type
@@ -196,9 +193,7 @@ parse_section_list :: proc() -> bool {
         g.this[name] = list
 
     } else if !is_list(g.this[name]) {
-        g.err.type = .Key_Already_Exists
-        g.err.more = name // should be the whole line here, honestly
-
+        make_err(.Key_Already_Exists, name)
     } else {
         list = g.this[name].(^List)
     }
@@ -231,8 +226,7 @@ put :: proc(parent: ^Table, key: string, value: ^Table) {
         parent[key] = value
 
     case: 
-        g.err.type = .Key_Already_Exists
-        g.err.more = key
+        make_err(.Key_Already_Exists, key)
     }
 }
 
@@ -271,8 +265,7 @@ parse_assign :: proc()  -> bool {
     if err.type != .None do return true
     
     if any_of(u8('\n'), ..transmute([] u8)peek()) {
-        g.err.type = .Bad_Name
-        g.err.more = "Keys cannot have raw new lines in them"
+        make_err(.Bad_Name, "Keys cannot have raw new lines in them")
         return true
     }
 
@@ -280,8 +273,7 @@ parse_assign :: proc()  -> bool {
     value := parse_expr()
     
     if key in g.this {
-        g.err.type = .Key_Already_Exists
-        g.err.more = key
+        make_err(.Key_Already_Exists, key)
     }
 
     g.this[key] = value
@@ -383,8 +375,7 @@ parse_date :: proc() -> (result: dates.Date, ok: bool) {
     err: dates.DateError
     result, err = dates.from_string(to_string(full))
     if err != .NONE {
-        g.err.type = .Bad_Date
-        g.err.more = fmt.aprintf("Received error: %v by parsing: '%s' as date\n", err, to_string(full))
+        make_err(.Bad_Date, "Received error: %v by parsing: '%s' as date\n", err, to_string(full))
         return
     }
 
@@ -435,4 +426,16 @@ parse_table :: proc() -> (result: ^Table, ok: bool) {
     return
 }
 
+@(private="file")
+make_err :: proc(type: ErrorType, more_fmt: string, more_args: ..any) {
+    g.err.type = type
+    context.allocator = g.aloc
+    b_reset(&g.err.more)
+    b_printf(&g.err.more, more_fmt, ..more_args)
+}
 
+@(private="file")
+err_if_not :: proc(cond: bool, type: ErrorType, more_fmt: string, more_args: ..any) -> bool {
+    if !cond do make_err(type, more_fmt, ..more_args)
+    return !cond
+}
