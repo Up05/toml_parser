@@ -3,6 +3,7 @@ package toml
 import "core:strings"
 import "core:os"
 import "base:intrinsics"
+import "base:runtime"
 import "dates"
 
 import "core:fmt"
@@ -17,10 +18,6 @@ Builder        :: strings.Builder
 b_destroy      :: strings.builder_destroy
 b_reset        :: strings.builder_reset
 b_write_string :: strings.write_string
-b_write_rune   :: strings.write_rune
-b_write_byte   :: strings.write_byte
-b_to_string    :: strings.to_string
-b_print        :: fmt.sbprint
 b_printf       :: fmt.sbprintf
 
 // Parses the file. You can use print_error(err) for error messages.
@@ -41,6 +38,37 @@ parse_file :: proc(filename: string, allocator := context.allocator) -> (section
 // This is made to be used with default, err := #load(filename). original_filename is only used for errors.
 parse_data :: proc(data: []u8, original_filename := "untitled data", allocator := context.allocator) -> (section: ^Table, err: Error) {
     return parse(string(data), original_filename, allocator)
+}
+
+// Frees all of the memory allocated by the parser for a particular type
+// It is recursive, so you can just give it the root Table.
+deep_delete :: proc(type: Type, allocator := context.allocator) -> (err: runtime.Allocator_Error) {
+    context.allocator = allocator
+    #partial switch value in type {
+    case ^List:
+        if value == nil do break
+        for &item in value { 
+            err = deep_delete(item, allocator); 
+            if err != .None do return
+        }
+        err = delete_dynamic_array(value^)
+        if err == .None do free(value)
+
+    case ^Table:
+        if value == nil do break
+        for k, &v in value { 
+            err = delete_string(k); 
+            if err != .None do return 
+            err = deep_delete(v, allocator); 
+            if err != .None do return 
+        }
+        err = delete_map(value^)
+        if err == .None do free(value)
+
+    case string:
+        err = delete_string(value)
+    }
+    return
 }
 
 // Retrieves and type checks the value at path. The last element of path is the actual key.

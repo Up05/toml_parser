@@ -34,6 +34,7 @@ shorten_string :: proc(s: string, limit: int, or_newline := true) -> string {
 // when literal is true, function JUST returns str
 @private
 cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, err: Error) {
+    str := strings.clone(str)
     if literal do return str, err
 
     set_err :: proc(err: ^Error, type: ErrorType, more_fmt: string, more_args: ..any) {
@@ -139,7 +140,9 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
 
         last = r
     }
-    return to_string(b), err
+    delete_string(str)
+    defer b_destroy(&b)
+    return strings.clone(to_string(b)), err
 }
 
 @private

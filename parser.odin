@@ -141,10 +141,14 @@ walk_down :: proc(parent: ^Table) {
     if err.type != .None do return
     skip() // '.'
     
+    do_not_free: bool
+    defer if !do_not_free do delete_string(name)
+
     #partial switch value in parent[name] {
     case nil: 
         g.this = new(Table); 
         parent[name] = g.this; 
+        do_not_free = true
 
     case ^Table:
         g.this = value

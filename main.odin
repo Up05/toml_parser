@@ -5,23 +5,20 @@ package toml
     This file is for testing. It should be ignored by library users.
  
     For contributors:
-    I have (mostly) integrated these tests:
+    I have integrated these tests:
         https://github.com/toml-lang/toml-test
 
     To get them please download/build release 1.5.0:
         $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0 
 
-    For example: (Linux)
-        $ export $GOBIN="/tmp"
-        $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0
-        $ odin build . -out:toml_parser
-        $ /tmp/toml-test ./toml_parser
-
-    You may also run the `run-tests` shell script if you are on linux
-    But after installation (I personally) just run all the tests with toml-test
-        or a couple tests with -run 
+        To do so with shell: 
+            $ export $GOBIN="/tmp"
+            $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0
+            $ odin build . 
+            $ /tmp/toml-test <the built executable>
 
     Also, big thanks to tgolsson for suggesting this project
+    and arp242 for actually making the tests!
 
 */
 
@@ -29,6 +26,8 @@ import "core:fmt"
 import "core:os"
 import "core:encoding/json"
 import "dates"
+
+// import "core:testing"
 
 exit :: os.exit
 
@@ -47,12 +46,32 @@ main :: proc() {
     if err.type != .None do os.exit(1) 
 
     // if err.type != .None do logln(err)
-
+    
     idk,  ok := marshal(table)
     if !ok do return
     json, _ := json.marshal(idk)
     logln(string(json))
+
+    deep_delete(table)
+    // delete_error(&err)
+
 }
+
+// @test
+// memory_test :: proc(t: ^testing.T) {
+//     data := `
+//     [["valid/key/dotted-4.toml-20".arr]]
+//     ["valid/key/dotted-4.toml-20".arr.a]
+//     `
+// 
+//     table, err := parse(string(data), "<f>")
+// 
+//     if any_of("--print-errors", ..os.args) && err.type != .None { logln(err); print_error(err) }
+//     if err.type != .None do os.exit(1) 
+// 
+//     logln(deep_delete(table))
+//     delete_error(&err)
+// }
 
 // Dunno what to really call this...
 @(private="file")
