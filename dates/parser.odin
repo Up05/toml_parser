@@ -1,6 +1,7 @@
 package dates
 
 import "core:fmt"
+import "core:math"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
@@ -187,18 +188,22 @@ partial_date_to_string :: proc(date: Date, time_sep := ' ',) -> (out: string, er
     b: strings.Builder
     strings.builder_init_len_cap(&b, 0, 25)
 
+	_, frac := math.modf_f32(date.second)
+	timefmt := "%02d:%02d:%02.0f"
+	if frac > 0  do timefmt = "%02d:%02d:%06.03f"
+
     if date.is_date_only {
         fmt.sbprintf(&b, "%04d-%02d-%02d", date.year, date.month, date.day)
         return strings.to_string(b), .NONE
     }
     if date.is_time_only {
-        fmt.sbprintf(&b, "%02d:%02d:%02.0f", date.hour, date.minute, date.second)
+        fmt.sbprintf(&b, timefmt, date.hour, date.minute, date.second)
         return strings.to_string(b), .NONE
     }
 
-    fmt.sbprintf(&b, "%04d-%02d-%02d%c%02d:%02d:%02.0f",
-        date.year, date.month, date.day, time_sep,
-        date.hour, date.minute, date.second)
+    fmt.sbprintf(&b, "%04d-%02d-%02d", date.year, date.month, date.day)
+    strings.write_rune(&b, time_sep)
+	fmt.sbprintf(&b, timefmt, date.hour, date.minute, date.second)
 
     if date.is_date_local do return strings.to_string(b), .NONE
 
