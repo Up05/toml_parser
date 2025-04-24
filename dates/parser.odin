@@ -183,22 +183,26 @@ partial_date_to_string :: proc(date: Date, time_sep := ' ',) -> (out: string, er
         if !between(offset_hour, -23, 23) do return "", .OFFSET_HOUR_OUT_OF_BOUNDS
         if !between(offset_minute, -59, 59) do return "", .OFFSET_MINUTE_OUT_OF_BOUNDS
     }
-    
+
     b: strings.Builder
     strings.builder_init_len_cap(&b, 0, 25)
 
-    if date.year > 0 || date.month > 0 || date.day > 0 {
+    if date.is_date_only {
         fmt.sbprintf(&b, "%04d-%02d-%02d", date.year, date.month, date.day)
-        strings.write_rune(&b, time_sep)
+        return strings.to_string(b), .NONE
+    }
+    if date.is_time_only {
+        fmt.sbprintf(&b, "%02d:%02d:%02.0f", date.hour, date.minute, date.second)
+        return strings.to_string(b), .NONE
     }
 
-    if date.hour > 0 || date.minute > 0 || date.second > 0 {
-        fmt.sbprintf(&b, "%02d:%02d:%02.0f", date.hour, date.minute, date.second)
-    }
-    
+    fmt.sbprintf(&b, "%04d-%02d-%02d%c%02d:%02d:%02.0f",
+        date.year, date.month, date.day, time_sep,
+        date.hour, date.minute, date.second)
+
     if date.is_date_local do return strings.to_string(b), .NONE
 
-    else if date.offset_hour == 0 && date.offset_minute == 0 do strings.write_rune(&b, 'Z')
+    if date.offset_hour == 0 && date.offset_minute == 0 do strings.write_rune(&b, 'Z')
     else {
         if date.offset_minute != 0 && sign(date.offset_hour) != sign(date.offset_minute) {
             date.offset_hour += sign(date.offset_minute)
