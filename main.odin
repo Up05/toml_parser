@@ -42,11 +42,8 @@ main :: proc() {
 
     table, err := parse(string(data[:count]), "<stdin>")
 
-    if any_of("--print-errors", ..os.args) && err.type != .None { logln(err); print_error(err) }
-    if err.type != .None do os.exit(1) 
+    if err.type != .None { print_error(err); os.exit(1) }
 
-    // if err.type != .None do logln(err)
-    
     idk,  ok := marshal(table)
     if !ok do return
     json, _ := json.marshal(idk)
