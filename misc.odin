@@ -3,7 +3,6 @@ package toml
 import "core:fmt"
 import "core:strings"
 import "core:strconv"
-import "core:unicode/utf16"
 import "core:unicode/utf8"
 
 @private
@@ -60,26 +59,23 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
         if escaped {
             escaped = false
 
-            split_bytes: [8]u8
-            parsed_rune: rune
-
             switch r {
             case 'u': // for \uXXXX
                 if len(str) < i + 5 {
                     set_err(&err, .Bad_Unicode_Char, "'\\u' does most have hex 4 digits after it in string:", str)
                     return str, err
                 }
-                char_code, ok := strconv.parse_u64(str[i + 1:i + 5], 16)
-                if !ok {
-                    set_err(&err, .Bad_Unicode_Char, "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 5])
+
+                code, ok := strconv.parse_u64(str[i + 1: i + 5], 16)
+                buf, bytes := toml_ucs_to_utf8(code)
+
+                if bytes == -1 {
+                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + 5])
                     return str, err
                 }
-                if char_code > 0xD7FF && char_code < 0xE000 {
-                    set_err(&err, .Bad_Unicode_Char, "Unicode codepoint is not inside the range of valid characters")
-                    return str, err
-                }
-                utf16.decode_to_utf8(split_bytes[:], {u16(char_code)})
-                parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
+
+                parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
+                
                 write_rune(&b, parsed_rune)
                 to_skip = 4
 
@@ -88,17 +84,16 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                     set_err(&err, .Bad_Unicode_Char, "'\\U' does most have hex 8 digits after it in string:", str)
                     return str, err
                 }
-                char_code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
-                if !ok {
-                    set_err(&err, .Bad_Unicode_Char, "%s is an invalid unicode character, please use: \\uXXXX or \\UXXXXXXXX\n", str[i + 1:i + 9])
+                code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
+                buf, bytes := toml_ucs_to_utf8(code)
+
+                if bytes == -1 {
+                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + 9])
                     return str, err
                 }
-                if char_code > 0xD7FF && char_code < 0xE000 || char_code > 0x10FFFF {
-                    set_err(&err, .Bad_Unicode_Char, "Unicode codepoint is not inside the range of valid characters")
-                    return str, err
-                }
-                utf16.decode_to_utf8(split_bytes[:], { u16(char_code), u16(char_code >> 16) })
-                parsed_rune, _ = utf8.decode_rune_in_bytes(split_bytes[:])
+                
+                parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
+                
                 write_rune(&b, parsed_rune)
                 to_skip = 8
 
@@ -257,6 +252,7 @@ eq :: proc(a, b: string) -> bool {
 is_list :: proc(t: Type) -> bool { 
     _, is_list := t.(^List); 
     return is_list
+    
 }
 
 // // from: https://www.cl.cam.ac.uk/~mgk25/ucs/utf8_check.c
@@ -302,3 +298,91 @@ is_bare_rune_valid :: proc(r: rune) -> bool {
     if r == '\n' || r == '\r' || r == '\t' do return true
     return r >= 32
 }
+
+
+// Completely ripped from tomlc99:
+
+/**
+ *	Convert a UCS char to utf8 code, and return it in buf.
+ *	Return #bytes used in buf to encode the char, or
+ *	-1 on error.
+ */
+toml_ucs_to_utf8 :: proc(code: u64) -> (buf: [6] u8, byte_count: int) {
+    /* http://stackoverflow.com/questions/6240055/manually-converting-unicode-codepoints-into-utf-8-and-utf-16
+     */
+    /* The UCS code values 0xd800–0xdfff (UTF-16 surrogates) as well
+     * as 0xfffe and 0xffff (UCS noncharacters) should not appear in
+     * conforming UTF-8 streams.
+     */
+    if (0xd800 <= code && code <= 0xdfff) do return buf, -1
+    // if (0xfffe <= code && code <= 0xffff) do return buf, -1
+
+    /* 0x00000000 - 0x0000007F:
+        0xxxxxxx
+    */
+    if (code < 0) do return buf, -1;
+    if (code <= 0x7F) {
+        buf[0] = u8(code);
+        return buf, 1;
+    }
+
+    /* 0x00000080 - 0x000007FF:
+       110xxxxx 10xxxxxx
+    */
+    if (code <= 0x000007FF) {
+        buf[0] = u8(0xc0 | (code >> 6));
+        buf[1] = u8(0x80 | (code & 0x3f));
+        return buf, 2;
+    }
+
+    /* 0x00000800 - 0x0000FFFF:
+       1110xxxx 10xxxxxx 10xxxxxx
+    */
+    if (code <= 0x0000FFFF) {
+        buf[0] = u8(0xe0 | (code >> 12));
+        buf[1] = u8(0x80 | ((code >> 6) & 0x3f));
+        buf[2] = u8(0x80 | (code & 0x3f));
+        return buf, 3;
+    }
+
+    /* 0x00010000 - 0x001FFFFF:
+       11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+    */
+    if (code <= 0x001FFFFF) {
+        buf[0] = u8(0xf0 | (code >> 18));
+        buf[1] = u8(0x80 | ((code >> 12) & 0x3f));
+        buf[2] = u8(0x80 | ((code >> 6) & 0x3f));
+        buf[3] = u8(0x80 | (code & 0x3f));
+        return buf, 4;
+    }
+
+    /* 0x00200000 - 0x03FFFFFF:
+       111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+     */
+    if (code <= 0x03FFFFFF) {
+        buf[0] = u8(0xf8 | (code >> 24));
+        buf[1] = u8(0x80 | ((code >> 18) & 0x3f));
+        buf[2] = u8(0x80 | ((code >> 12) & 0x3f));
+        buf[3] = u8(0x80 | ((code >> 6) & 0x3f));
+        buf[4] = u8(0x80 | (code & 0x3f));
+        return buf, 5;
+    }
+
+    /* 0x04000000 - 0x7FFFFFFF:
+       1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+     */
+    if (code <= 0x7FFFFFFF) {
+        buf[0] = u8(0xfc | (code >> 30));
+        buf[1] = u8(0x80 | ((code >> 24) & 0x3f));
+        buf[2] = u8(0x80 | ((code >> 18) & 0x3f));
+        buf[3] = u8(0x80 | ((code >> 12) & 0x3f));
+        buf[4] = u8(0x80 | ((code >> 6) & 0x3f));
+        buf[5] = u8(0x80 | (code & 0x3f));
+        return buf, 6;
+    }
+
+    return buf, -1;
+}
+
+
+

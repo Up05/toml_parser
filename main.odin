@@ -49,6 +49,11 @@ main :: proc() {
     json, _ := json.marshal(idk)
     logln(string(json))
 
+    // for the valid/key/quoted-unicode test
+    // for k, v in table^ {
+    //     logln(k, "=", v)
+    // }
+
     deep_delete(table)
     // delete_error(&err)
 
