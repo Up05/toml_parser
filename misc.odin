@@ -301,6 +301,7 @@ is_bare_rune_valid :: proc(r: rune) -> bool {
 
 
 // Completely ripped from tomlc99:
+// https://github.com/cktan/tomlc99
 
 /**
  *	Convert a UCS char to utf8 code, and return it in buf.
