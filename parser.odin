@@ -208,6 +208,7 @@ parse_section_list :: proc() -> bool {
         make_err(.Key_Already_Exists, name)
     } else {
         list = g.this[name].(^List)
+        delete_string(name)
     }
 
     append(list, result) 

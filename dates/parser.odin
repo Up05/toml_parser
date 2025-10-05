@@ -99,7 +99,7 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
         if offset != -1 {
             date = date[offset:]
             // fine to have lowercase here, because it wouldn't have been detected otherwise
-            if strings.to_lower(date[:1]) == "z" do return
+            if date[:1] == "z" || date[:1] == "Z" do return
 
             out.offset_hour = parse_int2(
                 date[1:3],

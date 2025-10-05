@@ -34,17 +34,24 @@ Error :: struct {
     line: int,    
     file: string,
     more: Builder,
+    formatted: Builder,
 }
 
 // The filename is not freed, since it is only sliced 
 delete_error :: proc(err: ^Error) {
-    if err.type != .None do b_destroy(&err.more)
+    if err.type != .None { 
+        b_destroy(&err.more)
+    }
+    if len(err.formatted.buf) > 0 {
+        b_destroy(&err.formatted)
+    }
 }
 
 // This may also be a warning!
 print_error :: proc(err: Error, allocator := context.allocator) -> (fatal: bool) {
+    err := err
     message: string
-    message, fatal = format_error(err)
+    message, fatal = format_error(&err, allocator)
     if message != "" {
         logf("[TOML ERROR] %s", message) 
         delete(message, allocator)
@@ -53,7 +60,9 @@ print_error :: proc(err: Error, allocator := context.allocator) -> (fatal: bool)
 }
 
 // The message is allocated and should be freed after use.
-format_error :: proc(err: Error, allocator := context.allocator) -> (message: string, fatal: bool) {
+format_error :: proc(err: ^Error, allocator := context.allocator) -> (message: string, fatal: bool) {
+    if err.type == .None do return "", false
+
     descriptions : [ErrorType] string = {
         .None               = "",
         .Bad_Date           = "Failed to parse a date",
@@ -77,7 +86,10 @@ format_error :: proc(err: Error, allocator := context.allocator) -> (message: st
         .Unexpected_Token   = "Found a token that should not be there",
     }
 
-    return fmt.aprintf("%s:%d %s! %s\n", err.file, err.line + 1, descriptions[err.type], err.more.buf[:]), true
+    err.formatted.buf = make(type_of(err.formatted.buf), allocator)
+    b_printf(&err.formatted, "%s:%d %s! %s\n", err.file, err.line + 1, descriptions[err.type], err.more.buf[:])
+
+    return string(err.formatted.buf[:]), true
 }
 
 // Skips all consecutive new lines

@@ -2,6 +2,8 @@
 
 A TOML parser for odin-lang. 
 
+*breaking change: `format_error` now accepts a pointer to Error!*
+
 # Example
 
 ```Odin
