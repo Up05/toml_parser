@@ -282,7 +282,7 @@ unmarshal_value :: proc(table: ^Table, toml_key: string, field: any) -> (err: Un
 	case ^List:
 	// TODO
 	case ^Table:
-		unmarshal_table(table, field) or_return
+		unmarshal_table(v, field) or_return
 	case bool:
 		if !assign_bool(field, v) {
 			return .Unsupported_Type
