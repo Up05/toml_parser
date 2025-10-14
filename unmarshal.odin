@@ -2,8 +2,8 @@ package toml
 
 import "base:intrinsics"
 import "base:runtime"
-import "core:fmt"
 import "core:reflect"
+import "core:strconv"
 import "core:strings"
 import "dates"
 
@@ -234,8 +234,65 @@ assign_bool :: proc(val: any, b: bool) -> bool {
 	return true
 }
 
-unmarshal_string_token :: proc(table: ^Table, val: any, str: string, ti: ^reflect.Type_Info) {
-	// TODO	
+@(private)
+assign_date :: proc(val: any, date: dates.Date) -> bool {
+	switch &v in val {
+	case dates.Date:
+		v = date
+		return true
+	}
+	return false
+}
+
+@(private)
+unmarshal_string_token :: proc(val: any, str: string, ti: ^reflect.Type_Info) -> bool {
+	val := val
+	switch &v in val {
+	case string:
+		v = str
+		return true
+	case cstring:
+		if str == "" {
+			cstr, cstr_err := strings.clone_to_cstring(str)
+			if cstr_err != .None do return false
+			v = cstr
+		} else {
+			// NOTE: This is valid because 'clone_string' appends a NUL terminator
+			v = cstring(raw_data(str))
+		}
+		return true
+	}
+
+	#partial switch variant in ti.variant {
+	case reflect.Type_Info_Enum:
+		for name, i in variant.names {
+			if name == str {
+				assign_int(val, variant.values[i])
+				return true
+			}
+		}
+		return true
+
+	case reflect.Type_Info_Integer:
+		i := strconv.parse_i128(str) or_return
+		if assign_int(val, i) {
+			return true
+		}
+		if assign_float(val, i) {
+			return true
+		}
+
+	case reflect.Type_Info_Float:
+		f := strconv.parse_f64(str) or_return
+		if assign_int(val, f) {
+			return true
+		}
+		if assign_float(val, f) {
+			return true
+		}
+	}
+
+	return false
 }
 
 @(private)
@@ -281,25 +338,34 @@ unmarshal_value :: proc(table: ^Table, toml_key: string, field: any) -> (err: Un
 	switch v in toml_value {
 	case ^List:
 	// TODO
+
 	case ^Table:
 		unmarshal_table(v, field) or_return
+
 	case bool:
 		if !assign_bool(field, v) {
 			return .Unsupported_Type
 		}
+
 	case dates.Date:
-	// TODO
+		if !assign_date(field, v) {
+			return .Unsupported_Type
+		}
+
 	case f64:
 		if !assign_float(field, v) {
 			return .Unsupported_Type
 		}
+
 	case i64:
 		if !assign_int(field, v) {
 			return .Unsupported_Type
 		}
+
 	case string:
-		// TODO: handle err
-		unmarshal_string_token(table, field, v, ti)
+		if !unmarshal_string_token(field, v, ti) {
+			return .Unsupported_Type
+		}
 	}
 
 	return nil
