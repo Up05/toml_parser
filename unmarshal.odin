@@ -300,35 +300,34 @@ unmarshal_string_token :: proc(val: any, str: string, ti: ^reflect.Type_Info) ->
 }
 
 @(private)
-unmarshal_value :: proc(table: ^Table, toml_key: string, field: any) -> (err: Unmarshal_Error) {
-	field := field
-	ti := reflect.type_info_base(type_info_of(field.id))
-	toml_value := table[toml_key]
+unmarshal_value :: proc(dest: any, value: Type) -> (err: Unmarshal_Error) {
+	dest := dest
+	ti := reflect.type_info_base(type_info_of(dest.id))
 
 	if u, ok := ti.variant.(reflect.Type_Info_Union); ok {
 		// NOTE: If it's a union with only one variant, then treat it as that variant
 		if len(u.variants) == 1 {
 			variant := u.variants[0]
-			field.id = variant.id
+			dest.id = variant.id
 			ti = reflect.type_info_base(variant)
 			if !reflect.is_pointer_internally(variant) {
 				tag := any {
-					data = rawptr(uintptr(field.data) + u.tag_offset),
+					data = rawptr(uintptr(dest.data) + u.tag_offset),
 					id   = u.tag_type.id,
 				}
 				assign_int(tag, 1)
 			}
-		} else if field.id != Type {
+		} else if dest.id != Type {
 			for variant, i in u.variants {
 				variant_any := any {
-					data = field.data,
+					data = dest.data,
 					id   = variant.id,
 				}
-				if err = unmarshal_value(table, toml_key, variant_any); err == nil {
+				if err = unmarshal_value(variant_any, value); err == nil {
 					raw_tag := i
 					if !u.no_nil do raw_tag += 1
 					tag := any {
-						data = rawptr(uintptr(field.data) + u.tag_offset),
+						data = rawptr(uintptr(dest.data) + u.tag_offset),
 						id   = u.tag_type.id,
 					}
 					assign_int(tag, raw_tag)
@@ -339,35 +338,36 @@ unmarshal_value :: proc(table: ^Table, toml_key: string, field: any) -> (err: Un
 		}
 	}
 
-	switch v in toml_value {
+	switch v in value {
 	case ^List:
-		unmarshal_list(table, toml_key, field) or_return
+		fmt.println(v)
+		unmarshal_list(dest, v) or_return
 
 	case ^Table:
-		unmarshal_table(v, field) or_return
+		unmarshal_table(v, dest) or_return
 
 	case bool:
-		if !assign_bool(field, v) {
+		if !assign_bool(dest, v) {
 			return .Unsupported_Type
 		}
 
 	case dates.Date:
-		if !assign_date(field, v) {
+		if !assign_date(dest, v) {
 			return .Unsupported_Type
 		}
 
 	case f64:
-		if !assign_float(field, v) {
+		if !assign_float(dest, v) {
 			return .Unsupported_Type
 		}
 
 	case i64:
-		if !assign_int(field, v) {
+		if !assign_int(dest, v) {
 			return .Unsupported_Type
 		}
 
 	case string:
-		if !unmarshal_string_token(field, v, ti) {
+		if !unmarshal_string_token(dest, v, ti) {
 			return .Unsupported_Type
 		}
 	}
@@ -386,14 +386,13 @@ toml_name_from_tag_value :: proc(value: string) -> (toml_name, extra: string) {
 }
 
 @(private)
-unmarshal_list :: proc(table: ^Table, toml_key: string, field: any) -> Unmarshal_Error {
+unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 	assign_list :: proc(
-		table: ^Table,
-		toml_key: string,
-		elem_ti: ^reflect.Type_Info,
 		base: rawptr,
+		elem_ti: ^reflect.Type_Info,
+		list: ^List,
 	) -> Unmarshal_Error {
-		list := table[toml_key].(^List)
+		fmt.println(list)
 		for i in 0 ..< len(list) {
 			elem_ptr := rawptr(uintptr(base) + uintptr(i) * uintptr(elem_ti.size))
 			elem := any {
@@ -401,61 +400,28 @@ unmarshal_list :: proc(table: ^Table, toml_key: string, field: any) -> Unmarshal
 				id   = elem_ti.id,
 			}
 
-			switch &v in list[i] {
-			case bool:
-				if !assign_bool(elem, v) {
-					return .Unsupported_Type
-				}
-
-			case f64:
-				if !assign_float(elem, v) {
-					return .Unsupported_Type
-				}
-
-			case i64:
-				if !assign_int(elem, v) {
-					return .Unsupported_Type
-				}
-
-			case string:
-				if !unmarshal_string_token(elem, v, elem_ti) {
-					return .Unsupported_Type
-				}
-
-			case dates.Date:
-				if !assign_date(elem, v) {
-					return .Unsupported_Type
-				}
-
-			case ^Table:
-				unmarshal_table(table, elem) or_return
-
-			case ^List:
-				unmarshal_list(table, toml_key, elem) or_return
-			}
+			unmarshal_value(elem, list[i]) or_return
 		}
 
 		return .None
 	}
 
-	list, list_ok := table[toml_key].(^List)
-	if !list_ok do return .Unsupported_Type
-
-	ti := reflect.type_info_base(type_info_of(field.id))
+	ti := reflect.type_info_base(type_info_of(dest.id))
 
 	#partial switch t in ti.variant {
 	case reflect.Type_Info_Slice:
-		raw := cast(^mem.Raw_Slice)field.data
+		raw := cast(^mem.Raw_Slice)dest.data
 		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align)
 		if data_ok != .None {
 			return .Out_Of_Memory
 		}
 		raw.data = raw_data(data)
 		raw.len = len(list)
-		return assign_list(table, toml_key, t.elem, raw.data)
+
+		return assign_list(raw.data, t.elem, list)
 
 	case reflect.Type_Info_Dynamic_Array:
-		raw := cast(^mem.Raw_Dynamic_Array)field.data
+		raw := cast(^mem.Raw_Dynamic_Array)dest.data
 		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align)
 		if data_ok != .None {
 			return .Out_Of_Memory
@@ -463,20 +429,21 @@ unmarshal_list :: proc(table: ^Table, toml_key: string, field: any) -> Unmarshal
 		raw.data = raw_data(data)
 		raw.len = len(list)
 		raw.allocator = context.allocator
+		return assign_list(raw.data, t.elem, list)
 
 	case reflect.Type_Info_Array:
 		// NOTE(bill): Allow lengths which are less than the dst array
 		if len(list) > t.count {
 			return .Unsupported_Type
 		}
-		return assign_list(table, toml_key, t.elem, field.data)
+		return assign_list(dest.data, t.elem, list)
 
 	case reflect.Type_Info_Enumerated_Array:
 		// NOTE(bill): Allow lengths which are less than the dst array
 		if len(list) > t.count {
 			return .Unsupported_Type
 		}
-		return assign_list(table, toml_key, t.elem, field.data)
+		return assign_list(dest.data, t.elem, list)
 
 	case reflect.Type_Info_Complex:
 		// NOTE(bill): Allow lengths which are less than the dst array
@@ -486,11 +453,11 @@ unmarshal_list :: proc(table: ^Table, toml_key: string, field: any) -> Unmarshal
 
 		switch ti.id {
 		case complex32:
-			return assign_list(table, toml_key, type_info_of(f16), field.data)
+			return assign_list(dest.data, type_info_of(f16), list)
 		case complex64:
-			return assign_list(table, toml_key, type_info_of(f32), field.data)
+			return assign_list(dest.data, type_info_of(f32), list)
 		case complex128:
-			return assign_list(table, toml_key, type_info_of(f64), field.data)
+			return assign_list(dest.data, type_info_of(f64), list)
 		}
 
 
@@ -510,8 +477,9 @@ unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
 		}
 
 		fields := reflect.struct_fields_zipped(ti.id)
-		use_field_idx := -1
 		for key, value in table {
+			use_field_idx := -1
+
 			for field, field_idx in fields {
 				tag_value := reflect.struct_tag_get(field.tag, "toml")
 				toml_name, _ := toml_name_from_tag_value(tag_value)
@@ -521,14 +489,17 @@ unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
 				}
 			}
 
-			if use_field_idx < 0 do for field, field_idx in fields {
-				tag_value := reflect.struct_tag_get(field.tag, "toml")
-				toml_name, _ := toml_name_from_tag_value(tag_value)
-				if toml_name == "" && key == field.name {
-					use_field_idx = field_idx
-					break
+			if use_field_idx < 0 {
+				for field, field_idx in fields {
+					tag_value := reflect.struct_tag_get(field.tag, "toml")
+					toml_name, _ := toml_name_from_tag_value(tag_value)
+					if toml_name == "" && key == field.name {
+						use_field_idx = field_idx
+						break
+					}
 				}
 			}
+
 
 			check_children_using_fields :: proc(
 				key: string,
@@ -564,12 +535,10 @@ unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
 			field_found := use_field_idx >= 0
 
 			if field_found {
-				if field_found {
-					offset = fields[use_field_idx].offset
-					type = fields[use_field_idx].type
-				} else {
-					offset, type, field_found = check_children_using_fields(key, ti.id)
-				}
+				offset = fields[use_field_idx].offset
+				type = fields[use_field_idx].type
+			} else {
+				offset, type, field_found = check_children_using_fields(key, ti.id)
 			}
 
 			if field_found {
@@ -578,7 +547,7 @@ unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
 					data = field_ptr,
 					id   = type.id,
 				}
-				unmarshal_value(table, key, field)
+				unmarshal_value(field, table[key])
 			}
 		}
 
