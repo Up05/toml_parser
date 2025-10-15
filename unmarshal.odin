@@ -2,16 +2,20 @@ package toml
 
 import "base:intrinsics"
 import "base:runtime"
+import "core:fmt"
+import "core:mem"
 import "core:reflect"
 import "core:strconv"
 import "core:strings"
 import "dates"
 
 Unmarshal_Error :: enum {
+	None,
 	Invalid_Data,
 	Invalid_Parameter,
 	Non_Pointer_Parameter,
 	Multiple_Use_Field,
+	Out_Of_Memory,
 	Unsupported_Type,
 }
 
@@ -337,7 +341,7 @@ unmarshal_value :: proc(table: ^Table, toml_key: string, field: any) -> (err: Un
 
 	switch v in toml_value {
 	case ^List:
-	// TODO
+		unmarshal_list(table, toml_key, field) or_return
 
 	case ^Table:
 		unmarshal_table(v, field) or_return
@@ -379,6 +383,120 @@ toml_name_from_tag_value :: proc(value: string) -> (toml_name, extra: string) {
 		extra = value[1 + comma_idx:]
 	}
 	return
+}
+
+@(private)
+unmarshal_list :: proc(table: ^Table, toml_key: string, field: any) -> Unmarshal_Error {
+	assign_list :: proc(
+		table: ^Table,
+		toml_key: string,
+		elem_ti: ^reflect.Type_Info,
+		base: rawptr,
+	) -> Unmarshal_Error {
+		list := table[toml_key].(^List)
+		for i in 0 ..< len(list) {
+			elem_ptr := rawptr(uintptr(base) + uintptr(i) * uintptr(elem_ti.size))
+			elem := any {
+				data = elem_ptr,
+				id   = elem_ti.id,
+			}
+
+			switch &v in list[i] {
+			case bool:
+				if !assign_bool(elem, v) {
+					return .Unsupported_Type
+				}
+
+			case f64:
+				if !assign_float(elem, v) {
+					return .Unsupported_Type
+				}
+
+			case i64:
+				if !assign_int(elem, v) {
+					return .Unsupported_Type
+				}
+
+			case string:
+				if !unmarshal_string_token(elem, v, elem_ti) {
+					return .Unsupported_Type
+				}
+
+			case dates.Date:
+				if !assign_date(elem, v) {
+					return .Unsupported_Type
+				}
+
+			case ^Table:
+				unmarshal_table(table, elem) or_return
+
+			case ^List:
+				unmarshal_list(table, toml_key, elem) or_return
+			}
+		}
+
+		return .None
+	}
+
+	list, list_ok := table[toml_key].(^List)
+	if !list_ok do return .Unsupported_Type
+
+	ti := reflect.type_info_base(type_info_of(field.id))
+
+	#partial switch t in ti.variant {
+	case reflect.Type_Info_Slice:
+		raw := cast(^mem.Raw_Slice)field.data
+		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align)
+		if data_ok != .None {
+			return .Out_Of_Memory
+		}
+		raw.data = raw_data(data)
+		raw.len = len(list)
+		return assign_list(table, toml_key, t.elem, raw.data)
+
+	case reflect.Type_Info_Dynamic_Array:
+		raw := cast(^mem.Raw_Dynamic_Array)field.data
+		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align)
+		if data_ok != .None {
+			return .Out_Of_Memory
+		}
+		raw.data = raw_data(data)
+		raw.len = len(list)
+		raw.allocator = context.allocator
+
+	case reflect.Type_Info_Array:
+		// NOTE(bill): Allow lengths which are less than the dst array
+		if len(list) > t.count {
+			return .Unsupported_Type
+		}
+		return assign_list(table, toml_key, t.elem, field.data)
+
+	case reflect.Type_Info_Enumerated_Array:
+		// NOTE(bill): Allow lengths which are less than the dst array
+		if len(list) > t.count {
+			return .Unsupported_Type
+		}
+		return assign_list(table, toml_key, t.elem, field.data)
+
+	case reflect.Type_Info_Complex:
+		// NOTE(bill): Allow lengths which are less than the dst array
+		if len(list) > 2 {
+			return .Unsupported_Type
+		}
+
+		switch ti.id {
+		case complex32:
+			return assign_list(table, toml_key, type_info_of(f16), field.data)
+		case complex64:
+			return assign_list(table, toml_key, type_info_of(f32), field.data)
+		case complex128:
+			return assign_list(table, toml_key, type_info_of(f64), field.data)
+		}
+
+
+	}
+
+	return .Unsupported_Type
 }
 
 unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
