@@ -2,7 +2,6 @@ package toml
 
 import "base:intrinsics"
 import "base:runtime"
-import "core:fmt"
 import "core:mem"
 import "core:reflect"
 import "core:strconv"
@@ -340,7 +339,6 @@ unmarshal_value :: proc(dest: any, value: Type) -> (err: Unmarshal_Error) {
 
 	switch v in value {
 	case ^List:
-		fmt.println(v)
 		unmarshal_list(dest, v) or_return
 
 	case ^Table:
@@ -392,7 +390,6 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 		elem_ti: ^reflect.Type_Info,
 		list: ^List,
 	) -> Unmarshal_Error {
-		fmt.println(list)
 		for i in 0 ..< len(list) {
 			elem_ptr := rawptr(uintptr(base) + uintptr(i) * uintptr(elem_ti.size))
 			elem := any {
