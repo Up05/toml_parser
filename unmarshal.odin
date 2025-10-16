@@ -408,7 +408,7 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 	#partial switch t in ti.variant {
 	case reflect.Type_Info_Slice:
 		raw := cast(^mem.Raw_Slice)dest.data
-		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align)
+		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align, list.allocator)
 		if data_ok != .None {
 			return .Out_Of_Memory
 		}
@@ -419,7 +419,7 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 
 	case reflect.Type_Info_Dynamic_Array:
 		raw := cast(^mem.Raw_Dynamic_Array)dest.data
-		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align)
+		data, data_ok := mem.alloc_bytes(t.elem.size * len(list), t.elem.align, list.allocator)
 		if data_ok != .None {
 			return .Out_Of_Memory
 		}

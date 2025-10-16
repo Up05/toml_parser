@@ -1,10 +1,12 @@
 package tests
 
+import "core:mem"
 import "core:slice"
 import "core:testing"
 
 import toml ".."
 import "../dates"
+
 
 @(test)
 nil_guard_get :: proc(t: ^testing.T) {
@@ -34,7 +36,8 @@ unmarshal_primitives :: proc(t: ^testing.T) {
 	}
 
 	test: Test
-	testing.expect(t, toml.unmarshal_string(test_toml, &test) == .None)
+	testing.expect(t, toml.unmarshal_string(test_toml, &test, context.temp_allocator) == .None)
+	defer free_all(context.temp_allocator)
 
 	testing.expect_value(t, test.integer, 22)
 	testing.expect_value(t, test.decimal, 12.4)
@@ -79,7 +82,8 @@ unmarshal_subtables :: proc(t: ^testing.T) {
 	}
 
 	test: Test
-	testing.expect(t, toml.unmarshal_string(test_toml, &test) == .None)
+	testing.expect(t, toml.unmarshal_string(test_toml, &test, context.temp_allocator) == .None)
+	defer free_all(context.temp_allocator)
 
 	testing.expect_value(t, test.table1.x, 1)
 	testing.expect_value(t, test.table2.x, 2)
@@ -111,7 +115,8 @@ unmarshal_lists :: proc(t: ^testing.T) {
 	}
 
 	test: Test
-	testing.expect(t, toml.unmarshal_string(test_toml, &test) == .None)
+	testing.expect(t, toml.unmarshal_string(test_toml, &test, context.temp_allocator) == .None)
+	defer free_all(context.temp_allocator)
 
 	expected_arr := []int{1, 2, 3, 4}
 
