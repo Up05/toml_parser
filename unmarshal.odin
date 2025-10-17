@@ -2,6 +2,7 @@ package toml
 
 import "base:intrinsics"
 import "base:runtime"
+import "core:fmt"
 import "core:mem"
 import "core:reflect"
 import "core:strconv"
@@ -47,7 +48,7 @@ unmarshal_any :: proc(data: []byte, v: any, allocator := context.allocator) -> U
 		data = (^rawptr)(v.data)^,
 		id   = ti.variant.(reflect.Type_Info_Pointer).elem.id,
 	}
-	if err := unmarshal_table(table, v); err != nil {
+	if err := unmarshal_table(v, table); err != nil {
 		return err
 	}
 	return nil
@@ -67,6 +68,12 @@ unmarshal_string :: proc(
 
 @(private)
 assign_int :: proc(val: any, i: $T) -> bool {
+	switch &v in val {
+	case Type:
+		v = i64(i)
+		return true
+	}
+
 	v := reflect.any_core(val)
 	switch &dst in v {
 	case i8:
@@ -127,6 +134,8 @@ assign_int :: proc(val: any, i: $T) -> bool {
 		dst = uint(i)
 	case uintptr:
 		dst = uintptr(i)
+	case Type:
+		dst = i64(i)
 	case:
 		is_bit_set_different_endian_to_platform :: proc(ti: ^runtime.Type_Info) -> bool {
 			if ti == nil {
@@ -176,6 +185,12 @@ assign_int :: proc(val: any, i: $T) -> bool {
 
 @(private)
 assign_float :: proc(val: any, f: $T) -> bool {
+	switch &v in val {
+	case Type:
+		v = f64(f)
+		return true
+	}
+
 	v := reflect.any_core(val)
 	switch &dst in v {
 	case f16:
@@ -211,6 +226,9 @@ assign_float :: proc(val: any, f: $T) -> bool {
 	case quaternion256:
 		dst = quaternion(w = f64(f), x = 0, y = 0, z = 0)
 
+	case Type:
+		dst = f64(f)
+
 	case:
 		return false
 	}
@@ -219,6 +237,12 @@ assign_float :: proc(val: any, f: $T) -> bool {
 
 @(private)
 assign_bool :: proc(val: any, b: bool) -> bool {
+	switch &v in val {
+	case Type:
+		v = bool(b)
+		return true
+	}
+
 	v := reflect.any_core(val)
 	switch &dst in v {
 	case bool:
@@ -231,6 +255,8 @@ assign_bool :: proc(val: any, b: bool) -> bool {
 		dst = b32(b)
 	case b64:
 		dst = b64(b)
+	case Type:
+		dst = b
 	case:
 		return false
 	}
@@ -241,6 +267,9 @@ assign_bool :: proc(val: any, b: bool) -> bool {
 assign_date :: proc(val: any, date: dates.Date) -> bool {
 	switch &v in val {
 	case dates.Date:
+		v = date
+		return true
+	case Type:
 		v = date
 		return true
 	}
@@ -263,6 +292,9 @@ unmarshal_string_token :: proc(val: any, str: string, ti: ^reflect.Type_Info) ->
 			// NOTE: This is valid because 'clone_string' appends a NUL terminator
 			v = cstring(raw_data(str))
 		}
+		return true
+	case Type:
+		v = str
 		return true
 	}
 
@@ -342,7 +374,7 @@ unmarshal_value :: proc(dest: any, value: Type) -> (err: Unmarshal_Error) {
 		unmarshal_list(dest, v) or_return
 
 	case ^Table:
-		unmarshal_table(v, dest) or_return
+		unmarshal_table(dest, v) or_return
 
 	case bool:
 		if !assign_bool(dest, v) {
@@ -463,7 +495,7 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 	return .Unsupported_Type
 }
 
-unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
+unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 	v := v
 	ti := reflect.type_info_base(type_info_of(v.id))
 
@@ -549,7 +581,56 @@ unmarshal_table :: proc(table: ^Table, v: any) -> Unmarshal_Error {
 		}
 
 	case reflect.Type_Info_Map:
-	// TODO
+		if !reflect.is_string(t.key) && !reflect.is_integer(t.key) {
+			return .Unsupported_Type
+		}
+		raw_map := cast(^mem.Raw_Map)v.data
+		if raw_map.allocator.procedure == nil {
+			raw_map.allocator = table.allocator
+		}
+
+		elem_backing, elem_backing_err := mem.alloc_bytes(
+			t.value.size,
+			t.value.align,
+			table.allocator,
+		)
+		if elem_backing_err != .None {
+			return .Out_Of_Memory
+		}
+		defer delete(elem_backing, table.allocator)
+
+		map_backing_value := any {
+			data = raw_data(elem_backing),
+			id   = t.value.id,
+		}
+
+		for key, value in table {
+			mem.zero_slice(elem_backing)
+			if err := unmarshal_value(map_backing_value, value); err != nil {
+				delete(key, table.allocator)
+				return err
+			}
+
+
+			key_ptr := any(key).data
+
+			set_ptr := runtime.__dynamic_map_set_without_hash(
+				raw_map,
+				t.map_info,
+				key_ptr,
+				map_backing_value.data,
+			)
+			if set_ptr == nil {
+				delete(key, table.allocator)
+			}
+
+			// there's no need to keep string value on the heap, since it was copied into map
+			if reflect.is_integer(t.key) {
+				delete(key, table.allocator)
+			}
+
+		}
+
 	case:
 		return .Unsupported_Type
 	}
