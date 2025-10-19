@@ -122,17 +122,34 @@ unmarshal_subtables_to_struct :: proc(t: ^testing.T) {
 unmarshal_subtables_to_map :: proc(t: ^testing.T) {
 	test_toml := `
 	[table1]
-	x = 1
+	x = 123
 
 	[table2]
-	x = 2
+	x = 345
 
 	[table3.table4]
-	x = 3
+	x = 567
 	`
 
 
-	panic("TODO")
+	test: map[string]toml.Type
+	testing.expect(t, toml.unmarshal_string(test_toml, &test, context.temp_allocator) == .None)
+	defer free_all(context.temp_allocator)
+
+	table1 := test["table1"].(^toml.Table)
+	table1_x := table1["x"]
+
+	table2 := test["table2"].(^toml.Table)
+	table2_x := table2["x"]
+
+	table3 := test["table3"].(^toml.Table)
+	table4 := table3["table4"].(^toml.Table)
+	table4_x := table4["x"]
+
+	testing.expect_value(t, table1_x, 123)
+	testing.expect_value(t, table2_x, 345)
+	testing.expect_value(t, table4_x, 567)
+
 }
 
 @(test)

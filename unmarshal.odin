@@ -559,6 +559,7 @@ unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 				return
 			}
 
+
 			offset: uintptr
 			type: ^reflect.Type_Info
 			field_found := use_field_idx >= 0
@@ -628,10 +629,14 @@ unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 			if reflect.is_integer(t.key) {
 				delete(key, table.allocator)
 			}
-
 		}
 
 	case:
+		switch &val in v {
+		case Type:
+			val = table
+			return nil
+		}
 		return .Unsupported_Type
 	}
 
