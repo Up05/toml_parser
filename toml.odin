@@ -23,8 +23,9 @@ b_printf       :: fmt.sbprintf
 // Parses the file. You can use print_error(err) for error messages.
 parse_file :: proc(filename: string, allocator := context.allocator) -> (section: ^Table, err: Error) {
     context.allocator = allocator
-    blob, ok_file_read := os.read_entire_file_from_filename(filename)
-    if !ok_file_read {
+
+    blob, osErr := os.read_entire_file_from_path(filename, allocator)
+    if osErr != nil {
         err.type = .Bad_File
         b_write_string(&err.more, filename)
         return nil, err
@@ -47,8 +48,8 @@ deep_delete :: proc(type: Type, allocator := context.allocator) -> (err: runtime
     #partial switch value in type {
     case ^List:
         if value == nil do break
-        for &item in value { 
-            err = deep_delete(item, allocator); 
+        for &item in value {
+            err = deep_delete(item, allocator);
             if err != .None do return
         }
         err = delete_dynamic_array(value^)
@@ -56,11 +57,11 @@ deep_delete :: proc(type: Type, allocator := context.allocator) -> (err: runtime
 
     case ^Table:
         if value == nil do break
-        for k, &v in value { 
-            err = delete_string(k); 
-            if err != .None do return 
-            err = deep_delete(v, allocator); 
-            if err != .None do return 
+        for k, &v in value {
+            err = delete_string(k);
+            if err != .None do return
+            err = deep_delete(v, allocator);
+            if err != .None do return
         }
         err = delete_map(value^)
         if err == .None do free(value)
@@ -113,7 +114,7 @@ print_table :: proc(section: ^Table, level := 0) {
     log("{ ")
     i := 0
     for k, v in section {
-        log(k, "= ") 
+        log(k, "= ")
         print_value(v, level)
         if i != len(section) - 1 do log(", ")
         else do log(" ")
@@ -144,33 +145,32 @@ print_value :: proc(v: Type, level := 0) {
 }
 
 // Here lies the code for LSP:
-get_i64    :: proc(section: ^Table, path: ..string) -> 
+get_i64    :: proc(section: ^Table, path: ..string) ->
             (val: i64, ok: bool) { return get(i64, section, ..path) }
-get_f64    :: proc(section: ^Table, path: ..string) -> 
+get_f64    :: proc(section: ^Table, path: ..string) ->
             (val: f64, ok: bool) { return get(f64, section, ..path) }
-get_bool   :: proc(section: ^Table, path: ..string) -> 
+get_bool   :: proc(section: ^Table, path: ..string) ->
             (val: bool, ok: bool) { return get(bool, section, ..path) }
-get_string :: proc(section: ^Table, path: ..string) -> 
+get_string :: proc(section: ^Table, path: ..string) ->
             (val: string, ok: bool) { return get(string, section, ..path) }
-get_date   :: proc(section: ^Table, path: ..string) -> 
+get_date   :: proc(section: ^Table, path: ..string) ->
             (val: dates.Date, ok: bool) { return get(dates.Date, section, ..path) }
-get_list   :: proc(section: ^Table, path: ..string) -> 
-            (val: ^List, ok: bool) { return get(^List, section, ..path) } 
-get_table  :: proc(section: ^Table, path: ..string) -> 
+get_list   :: proc(section: ^Table, path: ..string) ->
+            (val: ^List, ok: bool) { return get(^List, section, ..path) }
+get_table  :: proc(section: ^Table, path: ..string) ->
             (val: ^Table, ok: bool) { return get(^Table, section, ..path) }
 
-get_i64_panic    :: proc(section: ^Table, path: ..string) -> 
+get_i64_panic    :: proc(section: ^Table, path: ..string) ->
             i64 { return get_panic(i64, section, ..path) }
-get_f64_panic    :: proc(section: ^Table, path: ..string) -> 
+get_f64_panic    :: proc(section: ^Table, path: ..string) ->
             f64 { return get_panic(f64, section, ..path) }
-get_bool_panic   :: proc(section: ^Table, path: ..string) -> 
+get_bool_panic   :: proc(section: ^Table, path: ..string) ->
             bool { return get_panic(bool, section, ..path) }
-get_string_panic :: proc(section: ^Table, path: ..string) -> 
+get_string_panic :: proc(section: ^Table, path: ..string) ->
             string { return get_panic(string, section, ..path) }
-get_date_panic   :: proc(section: ^Table, path: ..string) -> 
+get_date_panic   :: proc(section: ^Table, path: ..string) ->
             dates.Date { return get_panic(dates.Date, section, ..path) }
-get_list_panic   :: proc(section: ^Table, path: ..string) -> 
-            ^List { return get_panic(^List, section, ..path) } 
-get_table_panic  :: proc(section: ^Table, path: ..string) -> 
+get_list_panic   :: proc(section: ^Table, path: ..string) ->
+            ^List { return get_panic(^List, section, ..path) }
+get_table_panic  :: proc(section: ^Table, path: ..string) ->
             ^Table { return get_panic(^Table, section, ..path) }
-

@@ -41,8 +41,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
         b_printf(&err.more, more_fmt, ..more_args)
     }
 
-    using strings
-    b: Builder
+    b: strings.Builder
     // defer builder_destroy(&b) // don't need to, shouldn't even free the original str here
 
     to_skip := 0
@@ -75,8 +74,8 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 }
 
                 parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
-                
-                write_rune(&b, parsed_rune)
+
+                strings.write_rune(&b, parsed_rune)
                 to_skip = 4
 
             case 'U': // for \UXXXXXXXX
@@ -91,25 +90,25 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                     set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + 9])
                     return str, err
                 }
-                
+
                 parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
-                
-                write_rune(&b, parsed_rune)
+
+                strings.write_rune(&b, parsed_rune)
                 to_skip = 8
 
             case 'x':
                 set_err(&err, .Bad_Unicode_Char, "\\xXX is not in the spec, you can just use \\u00XX instead.")
                 return str, err
 
-            case 'n' : write_byte(&b, '\n')
-            case 'r' : write_byte(&b, '\r')
-            case 't' : write_byte(&b, '\t')
-            case 'b' : write_byte(&b, '\b')
-            case 'f' : write_byte(&b, '\f')
-            case '\\': write_byte(&b, '\\')
-            case '"' : write_byte(&b, '"')
-            case '\'': write_byte(&b, '\'')
-            case ' ', '\t', '\r', '\n': 
+            case 'n' : strings.write_byte(&b, '\n')
+            case 'r' : strings.write_byte(&b, '\r')
+            case 't' : strings.write_byte(&b, '\t')
+            case 'b' : strings.write_byte(&b, '\b')
+            case 'f' : strings.write_byte(&b, '\f')
+            case '\\': strings.write_byte(&b, '\\')
+            case '"' : strings.write_byte(&b, '"')
+            case '\'': strings.write_byte(&b, '\'')
+            case ' ', '\t', '\r', '\n':
                 // if (r == ' ' || r == '\t') && len(str) > i + 1 && (str[i + 1] != '\n' || str[i + 1] != '\r') {
                 //     err.type = .Bad_Unicode_Char
                 //     err.more = "cannot escape space in the middle of the line."
@@ -118,18 +117,18 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 //     err.type = .Bad_Unicode_Char
                 //     err.more = "Cannot escape space/new line when it is the last character"
                 // }
-                
+
                 // Fun thing for multiline line string line escaping.
                 for r in str[i + 1:] {
                     if r == ' ' || r == '\t' || r == '\r' || r == '\n' do to_skip += 1
                     else do break
                 }
-            case: 
-                set_err(&err, .Bad_Unicode_Char, "Unexpected escape sequence found."); 
+            case:
+                set_err(&err, .Bad_Unicode_Char, "Unexpected escape sequence found.");
                 return str, err
             }
         } else if r != '\\' {
-            write_rune(&b, r)
+            strings.write_rune(&b, r)
         } else {
             escaped = true
         }
@@ -138,7 +137,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
     }
     delete_string(str)
     defer b_destroy(&b) // you can't free a builder that has been cast to string
-    return strings.clone(to_string(b)), err
+    return strings.clone(strings.to_string(b)), err
 }
 
 @private
@@ -152,7 +151,7 @@ is_space :: proc(r: u8) -> bool {
     SPACE : [4] u8 = { ' ', '\r', '\n', '\t' }
     return r == SPACE[0] || r == SPACE[1] || r == SPACE[2] || r == SPACE[3]
     // Nudge nudge
-} 
+}
 
 @private
 is_special :: proc(r: u8) -> bool {
@@ -160,7 +159,7 @@ is_special :: proc(r: u8) -> bool {
     return  r == SPECIAL[0] || r == SPECIAL[1] || r == SPECIAL[2] || r == SPECIAL[3] ||
             r == SPECIAL[4] || r == SPECIAL[5] || r == SPECIAL[6] || r == SPECIAL[7]
     // Shove shove
-} 
+}
 
 @private
 is_digit :: proc(r: rune, base: int) -> bool {
@@ -186,11 +185,11 @@ between_any :: proc(a: rune, b: ..rune) -> bool {
 @(private)
 get_quote_count :: proc(a: string) -> int {
     s := len(a)
-    if  s > 2 && 
+    if  s > 2 &&
         ((a[:3] == "\"\"\"" && a[s-3:] == "\"\"\"" ) ||
         (a[:3] == "'''" && a[s-3:] == "'''")) { return 3 }
 
-    if  s > 0 && 
+    if  s > 0 &&
         ((a[:1] == "\"" && a[s-1:] == "\"") ||
         (a[:1] == "'" && a[s-1:] == "'")) { return 1 }
 
@@ -249,18 +248,18 @@ eq :: proc(a, b: string) -> bool {
 }
 
 @private
-is_list :: proc(t: Type) -> bool { 
-    _, is_list := t.(^List); 
+is_list :: proc(t: Type) -> bool {
+    _, is_list := t.(^List);
     return is_list
-    
+
 }
 
 // // from: https://www.cl.cam.ac.uk/~mgk25/ucs/utf8_check.c
 // is_rune_valid :: proc(r: rune) -> bool {
 //     // if !utf8.valid_rune(r) do return false
-// 
+//
 //     s, n := utf8.encode_rune(r)
-// 
+//
 //     if n == 1 {
 //         /* 0xxxxxxx */
 //         return true
@@ -290,7 +289,7 @@ is_list :: proc(t: Type) -> bool {
 //             return true
 //         }
 //     } else do return false
-// 
+//
 //     return true
 // }
 
@@ -384,6 +383,3 @@ toml_ucs_to_utf8 :: proc(code: u64) -> (buf: [6] u8, byte_count: int) {
 
     return buf, -1;
 }
-
-
-
