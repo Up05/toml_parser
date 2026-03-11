@@ -33,7 +33,7 @@ GlobalData :: struct {
 }
 
 @private // is only allocated when parse() and validate() are working.
-g: ^GlobalData 
+g: ^GlobalData
 
 
 @private // gets a token or an empty string.
@@ -54,13 +54,13 @@ peek :: proc(o := 0) -> string {
 }
 
 
-// skips by one or more tokens, the parser & validator CANNOT go back, 
+// skips by one or more tokens, the parser & validator CANNOT go back,
 @private // since my solution to the halting problem may not work then.
 skip :: proc(o := 1) {
     assert(o >= 0)
     g.curr += o
     if o != 0 do g.reps = 0
-}             
+}
 
 @private // returns the current token and skips to the next token.
 next :: proc() -> string {
@@ -68,14 +68,14 @@ next :: proc() -> string {
     return peek()
 }
 
-parse :: proc(data: string, original_file: string, allocator := context.allocator) -> (tokens: ^Table, err: Error) { 
+parse :: proc(data: string, original_file: string, allocator := context.allocator) -> (tokens: ^Table, err: Error) {
     context.allocator = allocator
-    
+
     // === TOKENIZER ===
     raw_tokens, t_err := tokenize(data, file = original_file)
     defer delete_dynamic_array(raw_tokens)
     if t_err.type != .None do return nil, t_err
-    
+
     // === VALIDATOR ===
     v_err := validate(raw_tokens[:], original_file, allocator)
     if v_err.type != .None do return tokens, v_err
@@ -85,7 +85,7 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
 
     initial_data: GlobalData = {
         toks = raw_tokens[:],
-        err  = { line = 1, file = original_file }, 
+        err  = { line = 1, file = original_file },
 
         root    = tokens,
         this    = tokens,
@@ -102,25 +102,25 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
         if g.err.type != .None {
             return nil, g.err
         }
-        
+
         if peek() == "\n" {
             g.err.line += 1
             skip()
             continue
         }
 
-        parse_statement() 
+        parse_statement()
         g.this = g.section
     }
-    
+
     if g.err.type != .None {
         return nil, g.err
     }
-        
+
     return
 }
 
-// ==================== STATEMENTS ====================  
+// ==================== STATEMENTS ====================
 
 parse_statement :: proc() {
     ok: bool
@@ -141,21 +141,21 @@ walk_down :: proc(parent: ^Table) {
     // ! PLEASE RUN ALL TESTS IF YOU CHANGE THIS AT ALL.     !
     // ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
 
-    if peek(1) != "." do return 
+    if peek(1) != "." do return
 
     name, err := unquote(next())
     g.err.type = err.type
     g.err.more = err.more
     if err.type != .None do return
     skip() // '.'
-    
+
     do_not_free: bool
     defer if !do_not_free do delete_string(name)
 
     #partial switch value in parent[name] {
-    case nil: 
-        g.this = new(Table); 
-        parent[name] = g.this; 
+    case nil:
+        g.this = new(Table);
+        parent[name] = g.this;
         do_not_free = true
 
     case ^Table:
@@ -189,8 +189,8 @@ parse_section_list :: proc() -> bool {
     skip(2) // '[' '['
 
     g.this = g.root
-    g.section = g.root   
-    walk_down(g.root) 
+    g.section = g.root
+    walk_down(g.root)
 
     name, err := unquote(next()) // take care with ordering of this btw
     g.err.type = err.type
@@ -211,7 +211,7 @@ parse_section_list :: proc() -> bool {
         delete_string(name)
     }
 
-    append(list, result) 
+    append(list, result)
 
     skip(2) // ']' ']'
     g.section = result
@@ -238,7 +238,7 @@ put :: proc(parent: ^Table, key: string, value: ^Table) {
     case nil:
         parent[key] = value
 
-    case: 
+    case:
         make_err(.Key_Already_Exists, key)
     }
 }
@@ -246,9 +246,9 @@ put :: proc(parent: ^Table, key: string, value: ^Table) {
 parse_section :: proc() -> bool {
     if peek() != "[" do return false
     skip() // '['
-    
+
     g.this = g.root
-    g.section = g.root   
+    g.section = g.root
     walk_down(g.root)
 
     name, err := unquote(next()) // take care with ordering of this btw
@@ -275,7 +275,7 @@ parse_assign :: proc()  -> bool {
     g.err.type = err.type
     g.err.more = err.more
     if err.type != .None do return true
-    
+
     if any_of(u8('\n'), ..transmute([] u8)peek()) {
         make_err(.Bad_Name, "Keys cannot have raw new lines in them")
         return true
@@ -283,7 +283,7 @@ parse_assign :: proc()  -> bool {
 
     skip(2);
     value := parse_expr()
-    
+
     if key in g.this {
         make_err(.Key_Already_Exists, key)
     }
@@ -292,7 +292,7 @@ parse_assign :: proc()  -> bool {
     return true
 }
 
-// ==================== EXPRESSIONS ====================  
+// ==================== EXPRESSIONS ====================
 
 
 parse_expr :: proc() -> (result: Type) {
@@ -309,7 +309,7 @@ parse_expr :: proc() -> (result: Type) {
 
 parse_string :: proc() -> (result: string, ok: bool) {
     if len(peek()) == 0 do return
-    if r := peek()[0]; !any_of(r, '"', '\'') do return 
+    if r := peek()[0]; !any_of(r, '"', '\'') do return
     str, err := unquote(next())
     g.err.type = err.type
     g.err.more = err.more
@@ -331,7 +331,7 @@ parse_float :: proc() -> (result: f64, ok: bool) {
     }
 
     Infinity : f64 = 1e5000
-    NaN := transmute(f64) ( transmute(i64) Infinity | 1 ) 
+    NaN := transmute(f64) ( transmute(i64) Infinity | 1 )
 
     if len(peek()) == 4 {
         if peek()[0] == '-' { if peek()[1:] == "inf" { skip(); return -Infinity, true } }
@@ -357,67 +357,66 @@ parse_float :: proc() -> (result: f64, ok: bool) {
     }
 
     // it's an int then
-    return 
+    return
 }
 
-parse_int :: proc() -> (result: i64, ok: bool) { 
+parse_int :: proc() -> (result: i64, ok: bool) {
     result, ok = strconv.parse_i64(peek())
     if ok do skip()
     return
 }
 
-parse_date :: proc() -> (result: dates.Date, ok: bool) { 
-    using strings
+parse_date :: proc() -> (result: dates.Date, ok: bool) {
     if !dates.is_date_lax(peek(0)) do return
     ok = true
 
-    full: Builder
-    write_string(&full, next())
-    
+    full: strings.Builder
+    strings.write_string(&full, next())
+
     // is date, time or both?
     if dates.is_date_lax(peek()) {
-        write_rune(&full, ' ')
-        write_string(&full, next())
+        strings.write_rune(&full, ' ')
+        strings.write_string(&full, next())
     }
 
     if peek() == "." {
-        write_byte(&full, '.'); skip()
-        write_string(&full, next())
+        strings.write_byte(&full, '.'); skip()
+        strings.write_string(&full, next())
     }
 
     err: dates.DateError
-    result, err = dates.from_string(to_string(full))
+    result, err = dates.from_string(strings.to_string(full))
     if err != .NONE {
-        make_err(.Bad_Date, "Received error: %v by parsing: '%s' as date\n", err, to_string(full))
+        make_err(.Bad_Date, "Received error: %v by parsing: '%s' as date\n", err, strings.to_string(full))
         return
     }
 
-    builder_destroy(&full)
+    strings.builder_destroy(&full)
     return
 
 }
 
-parse_list :: proc() -> (result: ^List, ok: bool) { 
+parse_list :: proc() -> (result: ^List, ok: bool) {
     if peek() != "[" do return
     skip() // '['
     ok = true
-    
+
     result = new(List)
 
     for !any_of(peek(), "]", "") {
 
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }
-        
+
         element := parse_expr()
-        append(result, element) 
+        append(result, element)
     }
-    
+
     skip() // ']'
     return
-}   
+}
 
-parse_table :: proc() -> (result: ^Table, ok: bool) { 
+parse_table :: proc() -> (result: ^Table, ok: bool) {
     if peek() != "{" do return
     skip() // '{'
     ok = true
@@ -426,7 +425,7 @@ parse_table :: proc() -> (result: ^Table, ok: bool) {
 
     temp_this, temp_section := g.this, g.section
     for !any_of(peek(), "}", "") {
-        
+
         if peek() == "," { skip(); continue }
         if peek() == "\n" { g.err.line += 1; skip(); continue }
 

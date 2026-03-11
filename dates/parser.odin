@@ -95,7 +95,7 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
             date[:offset if offset != -1 else len(date)],
         )
         if !ok do return out, .FAILED_AT_SECOND
-        // seconds \in [00, 60], because of leap seconds 
+        // seconds \in [00, 60], because of leap seconds
         if !between(int(out.second), 0, 60) do return out, .SECOND_OUT_OF_BOUNDS
 
         if offset != -1 {
@@ -138,15 +138,14 @@ to_string :: proc(
     date := date
 
     {
-        using date
-        if !between(year, 0, 9999) do return "", .YEAR_OUT_OF_BOUNDS
-        if !between(month, 0, 12) do return "", .MONTH_OUT_OF_BOUNDS
-        if !between(day, 0, days_in_month(year, month)) do return "", .DAY_OUT_OF_BOUNDS
-        if !between(hour, 0, 23) do return "", .HOUR_OUT_OF_BOUNDS
-        if !between(minute, 0, 59) do return "", .MINUTE_OUT_OF_BOUNDS
-        if !between(int(second), 0, 60) do return "", .SECOND_OUT_OF_BOUNDS
-        if !between(offset_hour, -23, 23) do return "", .OFFSET_HOUR_OUT_OF_BOUNDS
-        if !between(offset_minute, -59, 59) do return "", .OFFSET_MINUTE_OUT_OF_BOUNDS
+        if !between(date.year, 0, 9999) do return "", .YEAR_OUT_OF_BOUNDS
+        if !between(date.month, 0, 12) do return "", .MONTH_OUT_OF_BOUNDS
+        if !between(date.day, 0, days_in_month(date.year, date.month)) do return "", .DAY_OUT_OF_BOUNDS
+        if !between(date.hour, 0, 23) do return "", .HOUR_OUT_OF_BOUNDS
+        if !between(date.minute, 0, 59) do return "", .MINUTE_OUT_OF_BOUNDS
+        if !between(int(date.second), 0, 60) do return "", .SECOND_OUT_OF_BOUNDS
+        if !between(date.offset_hour, -23, 23) do return "", .OFFSET_HOUR_OUT_OF_BOUNDS
+        if !between(date.offset_minute, -59, 59) do return "", .OFFSET_MINUTE_OUT_OF_BOUNDS
     }
 
     b: strings.Builder
@@ -176,15 +175,14 @@ to_string :: proc(
 partial_date_to_string :: proc(date: Date, time_sep := ' ',) -> (out: string, err: DateError) {
     date := date
     {
-        using date
-        if !between(year, 0, 9999) do return "", .YEAR_OUT_OF_BOUNDS
-        if !between(month, 0, 12) do return "", .MONTH_OUT_OF_BOUNDS
-        if !between(day, 0, days_in_month(year, month)) do return "", .DAY_OUT_OF_BOUNDS
-        if !between(hour, 0, 23) do return "", .HOUR_OUT_OF_BOUNDS
-        if !between(minute, 0, 59) do return "", .MINUTE_OUT_OF_BOUNDS
-        if !between(int(second), 0, 60) do return "", .SECOND_OUT_OF_BOUNDS
-        if !between(offset_hour, -23, 23) do return "", .OFFSET_HOUR_OUT_OF_BOUNDS
-        if !between(offset_minute, -59, 59) do return "", .OFFSET_MINUTE_OUT_OF_BOUNDS
+        if !between(date.year, 0, 9999) do return "", .YEAR_OUT_OF_BOUNDS
+        if !between(date.month, 0, 12) do return "", .MONTH_OUT_OF_BOUNDS
+        if !between(date.day, 0, days_in_month(date.year, date.month)) do return "", .DAY_OUT_OF_BOUNDS
+        if !between(date.hour, 0, 23) do return "", .HOUR_OUT_OF_BOUNDS
+        if !between(date.minute, 0, 59) do return "", .MINUTE_OUT_OF_BOUNDS
+        if !between(int(date.second), 0, 60) do return "", .SECOND_OUT_OF_BOUNDS
+        if !between(date.offset_hour, -23, 23) do return "", .OFFSET_HOUR_OUT_OF_BOUNDS
+        if !between(date.offset_minute, -59, 59) do return "", .OFFSET_MINUTE_OUT_OF_BOUNDS
     }
 
     b: strings.Builder
@@ -259,7 +257,7 @@ to_odin_datetime :: proc(date: Date) -> (result: datetime.DateTime, utc_offset: 
     )
 
     utc_offset = date.offset_hour * 60 + date.offset_minute
-    return 
+    return
 }
 
 from_odin_datetime :: proc(dt: datetime.DateTime, utc_offset: int) -> Date {
@@ -269,7 +267,7 @@ from_odin_datetime :: proc(dt: datetime.DateTime, utc_offset: int) -> Date {
     return Date {
         year = int(dt.year), month = int(dt.month), day = int(dt.day),
         hour = int(dt.hour), minute = int(dt.minute), second = f32(dt.second) + f32(dt.nano) / 1e9,
-        
+
         offset_hour = utc_offset / 60, offset_minute = utc_offset % 60,
         is_date_only = date_only,
         is_time_only = time_only
