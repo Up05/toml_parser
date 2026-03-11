@@ -13,14 +13,14 @@ package toml
         $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0 
 
         To do so with shell: 
-            $ export $GOBIN="/tmp"
+            $ export GOBIN="/tmp"
             $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0
             $ odin build . 
             $ /tmp/toml-test <the built executable>
 
     Also, big thanks to tgolsson for suggesting this project
     and arp242 for actually making the tests!
-
+    
 */
 
 import "core:encoding/json"
@@ -38,7 +38,7 @@ main :: proc() {
 
 	data := make([]u8, 16 * 1024 * 1024)
 	count, err_read := os.read(os.stdin, data)
-	assert(err_read == nil)
+	assert(err_read == nil || err_read == .EOF)
 
 	table, err := parse(string(data[:count]), "<stdin>")
 
