@@ -2,7 +2,6 @@
 package toml
 
 /*
-
     This file is for testing. It should be ignored by library users.
  
     For contributors:
@@ -13,7 +12,7 @@ package toml
         $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0 
 
         To do so with shell: 
-            $ export $GOBIN="/tmp"
+            $ export GOBIN="/tmp"
             $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0
             $ odin build . 
             $ /tmp/toml-test <the built executable>
@@ -38,7 +37,7 @@ main :: proc() {
 
 	data := make([]u8, 16 * 1024 * 1024)
 	count, err_read := os.read(os.stdin, data)
-	assert(err_read == nil)
+    assertf(err_read == nil || err_read == .EOF, "err_read != nil, instead: %v", err_read)
 
 	table, err := parse(string(data[:count]), "<stdin>")
 

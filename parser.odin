@@ -330,8 +330,8 @@ parse_float :: proc() -> (result: f64, ok: bool) {
         return false
     }
 
-    Infinity : f64 = 1e5000
-    NaN := transmute(f64) ( transmute(i64) Infinity | 1 )
+    Infinity := 0h7FF0_0000_0000_0000 // or: 1.0e5000 (but not 1e5000)
+    NaN      := 0h7FF0_0000_0000_0001 // or: NaN := transmute(f64) ( transmute(i64) Infinity | 1 )
 
     if len(peek()) == 4 {
         if peek()[0] == '-' { if peek()[1:] == "inf" { skip(); return -Infinity, true } }
