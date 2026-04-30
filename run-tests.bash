@@ -20,7 +20,6 @@ skip=(
 	-skip 'valid/spec-1.1.0/common-29'
 	-skip 'valid/spec-1.1.0/common-31'
 	-skip 'valid/spec-1.1.0/common-34'
-	-skip 'valid/string/escape-esc'
 
 	# Failing "invalid" tests
 	-skip 'invalid/array/extend-defined-aot'

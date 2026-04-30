@@ -89,6 +89,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             case 't' : strings.write_byte(&b, '\t')
             case 'b' : strings.write_byte(&b, '\b')
             case 'f' : strings.write_byte(&b, '\f')
+            case 'e' : strings.write_byte(&b, '\e')
             case '\\': strings.write_byte(&b, '\\')
             case '"' : strings.write_byte(&b, '"')
             case '\'': strings.write_byte(&b, '\'')
