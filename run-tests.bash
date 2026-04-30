@@ -18,8 +18,6 @@ skip=(
 	-skip 'valid/key/quoted-unicode'
 	-skip 'valid/multibyte'
 	-skip 'valid/spec-1.1.0/common-29'
-	-skip 'valid/spec-1.1.0/common-31'
-	-skip 'valid/spec-1.1.0/common-34'
 
 	# Failing "invalid" tests
 	-skip 'invalid/array/extend-defined-aot'
