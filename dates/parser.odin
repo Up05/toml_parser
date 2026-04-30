@@ -79,8 +79,12 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
     }
 
     // ##############################  T I M E  ##############################
+
+    // add seconds to "HH:MM" time, making "HH:MM:SS"
+    time_alloc: string;  defer delete(time_alloc)
     if len(date) == 5 {
-        date = strings.concatenate({date, ":00"})
+        time_alloc = strings.concatenate({date, ":00"})
+        date = time_alloc
     }
 
     if len(date) >= 8 && date[2] == ':' {
