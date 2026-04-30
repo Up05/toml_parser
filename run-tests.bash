@@ -17,12 +17,10 @@ skip=(
 	-skip 'valid/datetime/no-seconds'
 	-skip 'valid/key/quoted-unicode'
 	-skip 'valid/multibyte'
-	-skip 'valid/spec-1.1.0/common-12'
 	-skip 'valid/spec-1.1.0/common-29'
 	-skip 'valid/spec-1.1.0/common-31'
 	-skip 'valid/spec-1.1.0/common-34'
 	-skip 'valid/string/escape-esc'
-	-skip 'valid/string/hex-escape'
 
 	# Failing "invalid" tests
 	-skip 'invalid/array/extend-defined-aot'
@@ -90,10 +88,6 @@ skip=(
 	-skip 'invalid/string/bad-escape-04'
 	-skip 'invalid/string/bad-escape-05'
 	-skip 'invalid/string/bad-multiline'
-	-skip 'invalid/string/bad-uni-esc-05'
-	-skip 'invalid/string/bad-uni-esc-07'
-	-skip 'invalid/string/bad-uni-esc-ml-05'
-	-skip 'invalid/string/bad-uni-esc-ml-07'
 	-skip 'invalid/string/basic-multiline-out-of-range-unicode-escape-02'
 	-skip 'invalid/string/basic-out-of-range-unicode-escape-02'
 	-skip 'invalid/string/multiline-bad-escape-02'
