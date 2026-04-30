@@ -59,52 +59,37 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             escaped = false
 
             switch r {
-            case 'u': // for \uXXXX
-                if len(str) < i + 5 {
-                    set_err(&err, .Bad_Unicode_Char, "'\\u' does most have hex 4 digits after it in string:", str)
+            case 'x', 'u', 'U':
+                to_skip = 2
+                if r == 'u' {
+                    to_skip = 4
+                } else if r == 'U' {
+                    to_skip = 8
+                }
+                if len(str) < i + to_skip + 1 {
+                    set_err(&err, .Bad_Unicode_Char, "'\\%v' must have %v hex digits after it in string:", r, to_skip, str)
                     return str, err
                 }
 
-                code, ok := strconv.parse_u64(str[i + 1: i + 5], 16)
+                code, ok := strconv.parse_u64(str[i + 1: i + to_skip + 1], 16)
+                if !ok {
+                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + to_skip + 1])
+                }
                 buf, bytes := toml_ucs_to_utf8(code)
-
                 if bytes == -1 {
-                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + 5])
+                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + to_skip + 1])
                     return str, err
                 }
 
                 parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
-
                 strings.write_rune(&b, parsed_rune)
-                to_skip = 4
-
-            case 'U': // for \UXXXXXXXX
-                if len(str) < i + 9 {
-                    set_err(&err, .Bad_Unicode_Char, "'\\U' does most have hex 8 digits after it in string:", str)
-                    return str, err
-                }
-                code, ok := strconv.parse_u64(str[i + 1:i + 9], 16)
-                buf, bytes := toml_ucs_to_utf8(code)
-
-                if bytes == -1 {
-                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + 9])
-                    return str, err
-                }
-
-                parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
-
-                strings.write_rune(&b, parsed_rune)
-                to_skip = 8
-
-            case 'x':
-                set_err(&err, .Bad_Unicode_Char, "\\xXX is not in the spec, you can just use \\u00XX instead.")
-                return str, err
 
             case 'n' : strings.write_byte(&b, '\n')
             case 'r' : strings.write_byte(&b, '\r')
             case 't' : strings.write_byte(&b, '\t')
             case 'b' : strings.write_byte(&b, '\b')
             case 'f' : strings.write_byte(&b, '\f')
+            case 'e' : strings.write_byte(&b, '\e')
             case '\\': strings.write_byte(&b, '\\')
             case '"' : strings.write_byte(&b, '"')
             case '\'': strings.write_byte(&b, '\'')

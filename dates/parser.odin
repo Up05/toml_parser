@@ -79,6 +79,9 @@ from_string :: proc(date: string) -> (out: Date, err: DateError) {
     }
 
     // ##############################  T I M E  ##############################
+    if len(date) == 5 {
+        date = strings.concatenate({date, ":00"})
+    }
 
     if len(date) >= 8 && date[2] == ':' {
         out.is_date_only = false
@@ -227,24 +230,25 @@ partial_date_to_string :: proc(date: Date, time_sep := ' ',) -> (out: string, er
 
 // I don't need to test for both the date & the time
 is_date_lax :: proc(date: string) -> bool {
-    is_date := true
-    is_time := true
+    if len(date) >= 10 { // date or datetime
+        return are_all_numbers(date[0:4]) &&
+            are_all_numbers(date[5:7]) &&
+            are_all_numbers(date[8:10]) &&
+            date[4] == '-' && date[7] == '-'
+    }
 
-    if len(date) >= 10 {
-        is_date &= are_all_numbers(date[0:4])
-        is_date &= are_all_numbers(date[5:7])
-        is_date &= are_all_numbers(date[8:10])
-        is_date &= date[4] == '-' && date[7] == '-'
-    } else do is_date = false
+    if len(date) == 5 {  // time without seconds, e.g. "15:16"
+        return are_all_numbers(date[0:2]) &&
+            are_all_numbers(date[3:5]) &&
+            date[2] == ':'
+    }
 
-    if !is_date && len(date) >= 8 {
-        is_time &= are_all_numbers(date[0:2])
-        is_time &= are_all_numbers(date[3:5])
-        is_time &= are_all_numbers(date[6:8])
-        is_time &= date[2] == ':' && date[5] == ':'
-    } else do is_time = false
-
-    return is_date || is_time
+    // time
+    return len(date) >= 8 &&
+        are_all_numbers(date[0:2]) &&
+        are_all_numbers(date[3:5]) &&
+        are_all_numbers(date[6:8]) &&
+        date[2] == ':' && date[5] == ':'
 }
 
 to_odin_datetime :: proc(date: Date) -> (result: datetime.DateTime, utc_offset: int, error: datetime.Error) {
