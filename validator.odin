@@ -1,8 +1,5 @@
 package toml
 
-import "base:runtime"
-import "core:fmt"
-
 ErrorType :: enum {
     None,
 
@@ -382,7 +379,7 @@ validate_number :: proc() -> bool {//{{{
         case 'x': base = 16; main = main[2:]
         case 'o': base =  8; main = main[2:]
         case 'b': base =  2; main = main[2:]
-        case  0 : ;
+        case  0 : // nothing
         case: make_err(.Bad_Integer, "A number cannot start with '0'. Please use '0o1234' for octal")
         }
     }
@@ -422,9 +419,7 @@ validate_inline_list :: proc() -> bool { //{{{
     if peek() != "[" do return false
     skip() // '['
 
-    last_was_comma: bool
     for {
-
         skip_newline()
         if peek() == "]" do break
 
@@ -440,7 +435,6 @@ validate_inline_list :: proc() -> bool { //{{{
             make_err(.Double_Comma, "double comma found in an inline list.")
             return false
         }
-
     }
 
     return !err_if_not(next() == "]", .Missing_Bracket, "']' missing in inline array declaration")

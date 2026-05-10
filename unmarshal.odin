@@ -2,7 +2,6 @@ package toml
 
 import "base:intrinsics"
 import "base:runtime"
-import "core:fmt"
 import "core:mem"
 import "core:reflect"
 import "core:strconv"
@@ -506,7 +505,7 @@ unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 		}
 
 		fields := reflect.struct_fields_zipped(ti.id)
-		for key, value in table {
+		for key in table {
 			use_field_idx := -1
 
 			for field, field_idx in fields {

@@ -33,8 +33,8 @@ shorten_string :: proc(s: string, limit: int, or_newline := true) -> string {
 // when literal is true, function JUST returns str
 @private
 cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, err: Error) {
-    str := strings.clone(str)
-    if literal do return str, err
+    raw := strings.clone(str)
+    if literal do return raw, err
 
     set_err :: proc(err: ^Error, type: ErrorType, more_fmt: string, more_args: ..any) {
         err.type = type
@@ -42,13 +42,13 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
     }
 
     b: strings.Builder
-    // defer builder_destroy(&b) // don't need to, shouldn't even free the original str here
+    // defer builder_derawoy(&b) // don't need to, shouldn't even free the original text here
 
     to_skip := 0
 
     last: rune
     escaped: bool
-    for r, i in str {
+    for r, i in raw {
 
         if to_skip > 0 {
             to_skip -= 1
@@ -66,19 +66,19 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
                 } else if r == 'U' {
                     to_skip = 8
                 }
-                if len(str) < i + to_skip + 1 {
-                    set_err(&err, .Bad_Unicode_Char, "'\\%v' must have %v hex digits after it in string:", r, to_skip, str)
-                    return str, err
+                if len(raw) < i + to_skip + 1 {
+                    set_err(&err, .Bad_Unicode_Char, "'\\%v' must have %v hex digits after it in string:", r, to_skip, raw)
+                    return raw, err
                 }
 
-                code, ok := strconv.parse_u64(str[i + 1: i + to_skip + 1], 16)
+                code, ok := strconv.parse_u64(raw[i + 1: i + to_skip + 1], 16)
                 if !ok {
-                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + to_skip + 1])
+                    set_err(&err, .Bad_Unicode_Char, "'%s'", raw[i + 1:i + to_skip + 1])
                 }
                 buf, bytes := toml_ucs_to_utf8(code)
                 if bytes == -1 {
-                    set_err(&err, .Bad_Unicode_Char, "'%s'", str[i + 1:i + to_skip + 1])
-                    return str, err
+                    set_err(&err, .Bad_Unicode_Char, "'%s'", raw[i + 1:i + to_skip + 1])
+                    return raw, err
                 }
 
                 parsed_rune, _ := utf8.decode_rune_in_bytes(buf[:bytes])
@@ -94,23 +94,14 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
             case '"' : strings.write_byte(&b, '"')
             case '\'': strings.write_byte(&b, '\'')
             case ' ', '\t', '\r', '\n':
-                // if (r == ' ' || r == '\t') && len(str) > i + 1 && (str[i + 1] != '\n' || str[i + 1] != '\r') {
-                //     err.type = .Bad_Unicode_Char
-                //     err.more = "cannot escape space in the middle of the line."
-                // }
-                // if len(str) == i + 1 {
-                //     err.type = .Bad_Unicode_Char
-                //     err.more = "Cannot escape space/new line when it is the last character"
-                // }
-
                 // Fun thing for multiline line string line escaping.
-                for r in str[i + 1:] {
-                    if r == ' ' || r == '\t' || r == '\r' || r == '\n' do to_skip += 1
+                for r2 in raw[i + 1:] {
+                    if r2 == ' ' || r2 == '\t' || r2 == '\r' || r2 == '\n' do to_skip += 1
                     else do break
                 }
             case:
-                set_err(&err, .Bad_Unicode_Char, "Unexpected escape sequence found.");
-                return str, err
+                set_err(&err, .Bad_Unicode_Char, "Unexpected escape sequence found.")
+                return raw, err
             }
         } else if r != '\\' {
             strings.write_rune(&b, r)
@@ -120,7 +111,7 @@ cleanup_backslashes :: proc(str: string, literal := false) -> (result: string, e
 
         last = r
     }
-    delete_string(str)
+    delete_string(raw)
     defer b_destroy(&b) // you can't free a builder that has been cast to string
     return strings.clone(strings.to_string(b)), err
 }
@@ -234,7 +225,7 @@ eq :: proc(a, b: string) -> bool {
 
 @private
 is_list :: proc(t: Type) -> bool {
-    _, is_list := t.(^List);
+    _, is_list := t.(^List)
     return is_list
 
 }
@@ -305,66 +296,66 @@ toml_ucs_to_utf8 :: proc(code: u64) -> (buf: [6] u8, byte_count: int) {
     /* 0x00000000 - 0x0000007F:
         0xxxxxxx
     */
-    if (code < 0) do return buf, -1;
+    if (code < 0) do return buf, -1
     if (code <= 0x7F) {
-        buf[0] = u8(code);
-        return buf, 1;
+        buf[0] = u8(code)
+        return buf, 1
     }
 
     /* 0x00000080 - 0x000007FF:
        110xxxxx 10xxxxxx
     */
     if (code <= 0x000007FF) {
-        buf[0] = u8(0xc0 | (code >> 6));
-        buf[1] = u8(0x80 | (code & 0x3f));
-        return buf, 2;
+        buf[0] = u8(0xc0 | (code >> 6))
+        buf[1] = u8(0x80 | (code & 0x3f))
+        return buf, 2
     }
 
     /* 0x00000800 - 0x0000FFFF:
        1110xxxx 10xxxxxx 10xxxxxx
     */
     if (code <= 0x0000FFFF) {
-        buf[0] = u8(0xe0 | (code >> 12));
-        buf[1] = u8(0x80 | ((code >> 6) & 0x3f));
-        buf[2] = u8(0x80 | (code & 0x3f));
-        return buf, 3;
+        buf[0] = u8(0xe0 | (code >> 12))
+        buf[1] = u8(0x80 | ((code >> 6) & 0x3f))
+        buf[2] = u8(0x80 | (code & 0x3f))
+        return buf, 3
     }
 
     /* 0x00010000 - 0x001FFFFF:
        11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
     */
     if (code <= 0x001FFFFF) {
-        buf[0] = u8(0xf0 | (code >> 18));
-        buf[1] = u8(0x80 | ((code >> 12) & 0x3f));
-        buf[2] = u8(0x80 | ((code >> 6) & 0x3f));
-        buf[3] = u8(0x80 | (code & 0x3f));
-        return buf, 4;
+        buf[0] = u8(0xf0 | (code >> 18))
+        buf[1] = u8(0x80 | ((code >> 12) & 0x3f))
+        buf[2] = u8(0x80 | ((code >> 6) & 0x3f))
+        buf[3] = u8(0x80 | (code & 0x3f))
+        return buf, 4
     }
 
     /* 0x00200000 - 0x03FFFFFF:
        111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
      */
     if (code <= 0x03FFFFFF) {
-        buf[0] = u8(0xf8 | (code >> 24));
-        buf[1] = u8(0x80 | ((code >> 18) & 0x3f));
-        buf[2] = u8(0x80 | ((code >> 12) & 0x3f));
-        buf[3] = u8(0x80 | ((code >> 6) & 0x3f));
-        buf[4] = u8(0x80 | (code & 0x3f));
-        return buf, 5;
+        buf[0] = u8(0xf8 | (code >> 24))
+        buf[1] = u8(0x80 | ((code >> 18) & 0x3f))
+        buf[2] = u8(0x80 | ((code >> 12) & 0x3f))
+        buf[3] = u8(0x80 | ((code >> 6) & 0x3f))
+        buf[4] = u8(0x80 | (code & 0x3f))
+        return buf, 5
     }
 
     /* 0x04000000 - 0x7FFFFFFF:
        1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
      */
     if (code <= 0x7FFFFFFF) {
-        buf[0] = u8(0xfc | (code >> 30));
-        buf[1] = u8(0x80 | ((code >> 24) & 0x3f));
-        buf[2] = u8(0x80 | ((code >> 18) & 0x3f));
-        buf[3] = u8(0x80 | ((code >> 12) & 0x3f));
-        buf[4] = u8(0x80 | ((code >> 6) & 0x3f));
-        buf[5] = u8(0x80 | (code & 0x3f));
-        return buf, 6;
+        buf[0] = u8(0xfc | (code >> 30))
+        buf[1] = u8(0x80 | ((code >> 24) & 0x3f))
+        buf[2] = u8(0x80 | ((code >> 18) & 0x3f))
+        buf[3] = u8(0x80 | ((code >> 12) & 0x3f))
+        buf[4] = u8(0x80 | ((code >> 6) & 0x3f))
+        buf[5] = u8(0x80 | (code & 0x3f))
+        return buf, 6
     }
 
-    return buf, -1;
+    return buf, -1
 }

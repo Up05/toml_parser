@@ -5,7 +5,6 @@ import "core:math"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
-import "core:time"
 import "core:time/datetime"
 
 DateError :: enum {
@@ -257,7 +256,7 @@ to_odin_datetime :: proc(date: Date) -> (result: datetime.DateTime, utc_offset: 
     result, error = datetime.components_to_datetime(
         date.year, date.month,  date.day,
         date.hour, date.minute, i64(seconds),
-        nanos = i64(f64(milliseconds) * 1e9)
+        nanos = i64(f64(milliseconds) * 1e9),
     )
 
     utc_offset = date.offset_hour * 60 + date.offset_minute
@@ -274,7 +273,7 @@ from_odin_datetime :: proc(dt: datetime.DateTime, utc_offset: int) -> Date {
 
         offset_hour = utc_offset / 60, offset_minute = utc_offset % 60,
         is_date_only = date_only,
-        is_time_only = time_only
+        is_time_only = time_only,
     }
 }
 

@@ -49,7 +49,7 @@ deep_delete :: proc(type: Type, allocator := context.allocator) -> (err: runtime
     case ^List:
         if value == nil do break
         for &item in value {
-            err = deep_delete(item, allocator);
+            err = deep_delete(item, allocator)
             if err != .None do return
         }
         err = delete_dynamic_array(value^)
@@ -58,9 +58,9 @@ deep_delete :: proc(type: Type, allocator := context.allocator) -> (err: runtime
     case ^Table:
         if value == nil do break
         for k, &v in value {
-            err = delete_string(k);
+            err = delete_string(k)
             if err != .None do return
-            err = deep_delete(v, allocator);
+            err = deep_delete(v, allocator)
             if err != .None do return
         }
         err = delete_map(value^)

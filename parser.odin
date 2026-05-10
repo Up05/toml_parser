@@ -22,14 +22,14 @@ Type :: union {
 
 @private
 GlobalData :: struct {
-    toks    : [] string, // all token list
-    curr    : int,       // the current token index
-    err     : Error,     // current error
-    root    : ^Table,    // the root/global table
-    section : ^Table,    // TOML's `[section]` table
-    this    : ^Table,    // TOML's local p.a.t.h or { table = {} } table
-    reps    : int,       // for halting upon infinite loops
-    aloc    : rt.Allocator // probably useless, honestly...
+    toks    : [] string,    // all token list
+    curr    : int,          // the current token index
+    err     : Error,        // current error
+    root    : ^Table,       // the root/global table
+    section : ^Table,       // TOML's `[section]` table
+    this    : ^Table,       // TOML's local p.a.t.h or { table = {} } table
+    reps    : int,          // for halting upon infinite loops
+    aloc    : rt.Allocator, // probably useless, honestly...
 }
 
 @private // is only allocated when parse() and validate() are working.
@@ -154,8 +154,8 @@ walk_down :: proc(parent: ^Table) {
 
     #partial switch value in parent[name] {
     case nil:
-        g.this = new(Table);
-        parent[name] = g.this;
+        g.this = new(Table)
+        parent[name] = g.this
         do_not_free = true
 
     case ^Table:
@@ -281,7 +281,7 @@ parse_assign :: proc()  -> bool {
         return true
     }
 
-    skip(2);
+    skip(2)
     value := parse_expr()
 
     if key in g.this {
