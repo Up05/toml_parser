@@ -38,7 +38,6 @@ skip=(
 	-skip 'invalid/datetime/offset-plus-no-minute'
 	-skip 'invalid/datetime/second-trailing-dotz'
 	-skip 'invalid/encoding/bad-codepoint'
-	-skip 'invalid/encoding/bad-utf8-at-end'
 	-skip 'invalid/encoding/bad-utf8-in-comment'
 	-skip 'invalid/encoding/bad-utf8-in-multiline'
 	-skip 'invalid/encoding/bad-utf8-in-multiline-literal'
@@ -140,6 +139,8 @@ if ! command -v "$tt" >/dev/null; then
 	exit 1
 fi
 
+
 # Run toml-test
 odin build .
+echo >&2 "Running tests with: $tt"
 "$tt" test -toml="$toml" -skip-must-err ${skip[@]} -decoder="$decoder" -encoder="${encoder:-}" "$@"

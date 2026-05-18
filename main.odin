@@ -1,34 +1,12 @@
 #+private
 package toml
 
-/*
-
-    This file is for testing. It should be ignored by library users.
- 
-    For contributors:
-    I have integrated these tests:
-        https://github.com/toml-lang/toml-test
-
-    To get them please download/build release 1.5.0:
-        $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0 
-
-        To do so with shell: 
-            $ export GOBIN="/tmp"
-            $ go install github.com/toml-lang/toml-test/cmd/toml-test@v1.5.0
-            $ odin build . 
-            $ /tmp/toml-test <the built executable>
-
-    Also, big thanks to tgolsson for suggesting this project
-    and arp242 for actually making the tests!
-    
-*/
-
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "dates"
 
-// import "core:testing"
+import "core:testing"
 
 exit :: os.exit
 
@@ -59,21 +37,18 @@ main :: proc() {
 
 }
 
-// @test
-// memory_test :: proc(t: ^testing.T) {
-//     data := `
-//     [["valid/key/dotted-4.toml-20".arr]]
-//     ["valid/key/dotted-4.toml-20".arr.a]
-//     `
-//
-//     table, err := parse(string(data), "<f>")
-//
-//     if any_of("--print-errors", ..os.args) && err.type != .None { logln(err); print_error(err) }
-//     if err.type != .None do os.exit(1)
-//
-//     logln(deep_delete(table))
-//     delete_error(&err)
-// }
+@test
+memory_test :: proc(t: ^testing.T) {
+    data := `x = """"""�`
+
+    table, err := parse(string(data), "<f>")
+
+    if any_of("--print-errors", ..os.args) && err.type != .None { logln(err); print_error(err) }
+    if err.type != .None do os.exit(1)
+
+    logln(deep_delete(table))
+    delete_error(&err)
+}
 
 // Dunno what to really call this...
 TestingType :: struct {

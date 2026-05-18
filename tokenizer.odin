@@ -95,7 +95,7 @@ leftover :: proc(raw: string) -> string {
             return raw[:i]
         }
     }
-    return ""
+    return raw
 }
 
 @(private="file")
