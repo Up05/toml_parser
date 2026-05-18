@@ -113,7 +113,7 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
     return
 }
 
-// ==================== STATEMENTS ====================
+// ======================== STATEMENTS ========================
 
 parse_statement :: proc(io: ^IO) {
     ok: bool
@@ -285,7 +285,7 @@ parse_assign :: proc(io: ^IO)  -> bool {
     return true
 }
 
-// ==================== EXPRESSIONS ====================
+// ======================== EXPRESSIONS ========================
 
 
 parse_expr :: proc(io: ^IO) -> (result: Type) {
@@ -429,18 +429,4 @@ parse_table :: proc(io: ^IO) -> (result: ^Table, ok: bool) {
 
     skip(io) // '}'
     return
-}
-
-@(private="file")
-make_err :: proc(io: ^IO, type: ErrorType, more_fmt: string, more_args: ..any) {
-    io.err.type = type
-    context.allocator = io.aloc
-    b_reset(&io.err.more)
-    b_printf(&io.err.more, more_fmt, ..more_args)
-}
-
-@(private="file")
-err_if_not :: proc(io: ^IO, cond: bool, type: ErrorType, more_fmt: string, more_args: ..any) -> bool {
-    if !cond do make_err(io, type, more_fmt, ..more_args)
-    return !cond
 }

@@ -86,43 +86,40 @@ tokenize :: proc(raw: string, file := "<unknown file>") -> (tokens: [dynamic] st
 
     return tokens, err
 
-}
 
-@(private="file")
-leftover :: proc(raw: string) -> string {
-    for _, i in raw {
-        if is_space(raw[i]) || is_special(raw[i]) || raw[i] == '#' {
-            return raw[:i]
+    leftover :: proc(raw: string) -> string {
+        for _, i in raw {
+            if is_space(raw[i]) || is_special(raw[i]) || raw[i] == '#' {
+                return raw[:i]
+            }
         }
+        return raw
     }
-    return raw
-}
 
-@(private="file")
-find :: proc(a: string, b: string, skip := 0, escape := true) -> (bytes: int, runes: int) {
-    escaped: bool
-    for r, i in a[skip:] {
-        defer runes += 1
-        if escaped do escaped = false
-        else if escape && r == '\\' do escaped = true
-        else if starts_with(a[i + skip:], b) do return i + skip, runes + skip 
-    }    // "+ skip" here is bad, it would be best to count runes up until "skip"
-    return -1, -1
-}
-
-@(private="file")
-go_further :: proc(a: string, r1: rune) -> (bytes: int, runes: int) {
-    for r2, i in a {
-        if r1 != r2 do return i, runes
-        bytes  = i
-        runes += 1
+    find :: proc(a: string, b: string, skip := 0, escape := true) -> (bytes: int, runes: int) {
+        escaped: bool
+        for r, i in a[skip:] {
+            defer runes += 1
+            if escaped do escaped = false
+            else if escape && r == '\\' do escaped = true
+            else if starts_with(a[i + skip:], b) do return i + skip, runes + skip 
+        }    // "+ skip" here is bad, it would be best to count runes up until "skip"
+        return -1, -1
     }
-    return 
+
+    go_further :: proc(a: string, r1: rune) -> (bytes: int, runes: int) {
+        for r2, i in a {
+            if r1 != r2 do return i, runes
+            bytes  = i
+            runes += 1
+        }
+        return 
+    }
+
+    set_err :: proc(err: ^Error, type: ErrorType, more_fmt: string, more_args: ..any) -> Error {
+        err.type = type
+        b_printf(&err.more, more_fmt, ..more_args)
+        return err^
+    }
 }
 
-@(private="file")
-set_err :: proc(err: ^Error, type: ErrorType, more_fmt: string, more_args: ..any) -> Error {
-    err.type = type
-    b_printf(&err.more, more_fmt, ..more_args)
-    return err^
-}

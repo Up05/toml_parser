@@ -100,12 +100,6 @@ Generally replaced by `fmt.print` and `fmt.printf("%#v\n", ...`.
 ```odin
 print_table :: proc(section: ^Table, level := 0)
 ```
-A while back Odin used to hang when printing a map pointer.  
-I'm pretty sure it does not anymore.
-
-```odin
-print_value :: proc(v: Type, level := 0) 
-```
 
 ## Freeing memory
 

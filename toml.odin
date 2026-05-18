@@ -126,27 +126,27 @@ print_table :: proc(section: ^Table, level := 0) {
     }
     log("}")
     if level == 0 do logln()
-}
 
-@(private="file")
-print_value :: proc(v: Type, level := 0) {
-    #partial switch t in v {
-    case ^Table:
-        print_table(t, level + 1)
-    case ^[dynamic] Type:
-        log("[ ")
-        for e, i in t {
-            print_value(e, level)
-            if i != len(t) - 1 do log(", ")
-            else do log(" ")
+    print_value :: proc(v: Type, level := 0) {
+        #partial switch t in v {
+        case ^Table:
+            print_table(t, level + 1)
+        case ^[dynamic] Type:
+            log("[ ")
+            for e, i in t {
+                print_value(e, level)
+                if i != len(t) - 1 do log(", ")
+                else do log(" ")
+            }
+            log("]")
+        case string:
+            logf("%q", v)
+        case:
+            log(v)
         }
-        log("]")
-    case string:
-        logf("%q", v)
-    case:
-        log(v)
     }
 }
+
 
 // Here lies the code for LSP:
 get_i64    :: proc(section: ^Table, path: ..string) ->

@@ -6,6 +6,18 @@ import "core:testing"
 import toml ".."
 import "../dates"
 
+@(test)
+memory_test :: proc(t: ^testing.T) {
+    data :: string(#load("example.toml"))
+
+    table, err := parse(string(data), "<f>")
+
+    if any_of("--print-errors", ..os.args) && err.type != .None { logln(err); print_error(err) }
+    if err.type != .None do os.exit(1)
+
+    logln(deep_delete(table))
+    delete_error(&err)
+}
 
 @(test)
 nil_guard_get :: proc(t: ^testing.T) {

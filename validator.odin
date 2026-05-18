@@ -459,7 +459,6 @@ validate_inline_table :: proc(io: ^IO) -> bool { //{{{
     return !err_if_not(io, next(io) == "}", .Missing_Bracket, "'}' missing in inline table declaration!")
 }//}}}
 
-@(private="file")
 make_err :: proc(io: ^IO, type: ErrorType, more_fmt: string, more_args: ..any) {
     io.err.type = type
     context.allocator = io.aloc
@@ -467,8 +466,8 @@ make_err :: proc(io: ^IO, type: ErrorType, more_fmt: string, more_args: ..any) {
     b_printf(&io.err.more, more_fmt, ..more_args)
 }
 
-@(private="file")
 err_if_not :: proc(io: ^IO, cond: bool, type: ErrorType, more_fmt: string, more_args: ..any) -> bool {
     if !cond do make_err(io, type, more_fmt, ..more_args)
     return !cond
 }
+

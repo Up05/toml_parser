@@ -5,6 +5,18 @@ import "core:strings"
 import "core:strconv"
 import "core:unicode/utf8"
 
+import "core:mem"
+import "core:mem/virtual"
+
+Allocator :: mem.Allocator
+
+@private 
+make_arena :: proc(initial_size := mem.Megabyte, caller := #caller_location) -> Allocator {
+    arena := new(virtual.Arena) // <-- least impactful memory leak here
+    _ = virtual.arena_init_growing(arena, uint(initial_size))
+    return virtual.arena_allocator(arena) 
+}
+
 @private
 find_newline :: proc(raw: string) -> (bytes: int, runes: int) {
     for r, i in raw {
