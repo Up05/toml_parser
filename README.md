@@ -1,8 +1,6 @@
 # TOML parser
 
-A TOML parser for odin-lang. 
-
-*breaking change: `format_error` now accepts a pointer to Error!*
+A TOML 1.1.0 parser for odin-lang. 
 
 # Example
 
@@ -45,9 +43,9 @@ And `import "toml"`
 # Design/Idiom idea
 
 Although, you can simply use `or_else` or just `val, ok := get(...`. I propose, that one could: 
-  1. load a configuration at runtime, by using `parse_file`
-  2. load their configuration at compile time by using `parse_data(#load(same_file), "filename.toml")`
-  3. first get a value from the runtime config by using `get` then, if need be, (via `or_else`) fallback to the compile-time config and use `get_panic`.
+  1. load a configuration at runtime, by using `parse_file`;
+  2. load their configuration at compile time by using `parse_data(#load(same_file), "filename.toml")`;
+  3. query runtime config by using `get` then, fallback to the compile-time config (with `or_else`) and use `get_panic`.
 
 # Function reference
 
@@ -124,12 +122,18 @@ Simply, frees the error.
 
 ## Testing (internal)
 
-```odin
-@private
-main :: proc()
+After making a change to parser or tokenizer, please run integrated tests via: 
+```sh
+./run-tests.bash
 ```
-This is here for `toml-test`. It takes in the TOML from `stdin`, parses it, marshal's it to JSON and prints the JSON to stdout. 
-Unless there was an error, in which case the program does not print anything and only exits with exit code `1`. 
+
+This library uses v2 tests from: github.com/toml-lang/toml-test (big thanks to arp242 and tgolsson here!)
+
+There are also a couple odin tests, you can run with:
+```sh
+odin test .
+odin test tests
+```
 
 *Some tests fail because of how odin formats floats & non-printable characters, cba to fix that and it doesn't matter.*
 

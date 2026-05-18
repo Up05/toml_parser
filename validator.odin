@@ -108,7 +108,7 @@ validate :: proc(raw_tokens: [] string, file: string, allocator := context.alloc
 
     for peek() != "" {
         if !validate_stmt() {
-            make_err(.Unexpected_Token, "Could not validate the (assumed to be) statement: %s", peek())
+            make_err(.Unexpected_Token, "Unexpected token at the start of a statement: %s!", peek())
         }
         if g.err.type != .None do break
     }
@@ -121,7 +121,7 @@ validate :: proc(raw_tokens: [] string, file: string, allocator := context.alloc
 validate_stmt :: proc() -> bool {
     return skip_newline()   ||   (validate_array() || validate_table() || validate_assign())   &&
 
-           !err_if_not(peek() == "" || peek() == "\n", .Missing_Newline, "Found a missing new line between statements.")
+           !err_if_not(peek() == "" || peek() == "\n", .Missing_Newline, "Found a missing new line between statements!")
 }
 
 // array of tables: `[[item]]` at the start of lines
@@ -135,10 +135,10 @@ validate_array :: proc() -> bool {
     validate_path()
 
     #no_bounds_check {
-        if peek(0) == "]" && peek(1) == "]" && err_if_not(peek(0)[1] == ']', .Missing_Bracket, "In section array both brackets must follow one another! ']]' not '] ]'") do return false
+        if peek(0) == "]" && peek(1) == "]" && err_if_not(peek(0)[1] == ']', .Missing_Bracket, "In section array both brackets must follow one another! ']]' not '] ]'!") do return false
     }
-    if err_if_not(next() == "]", .Missing_Bracket, "']' missing in section array declaration") do return false
-    if err_if_not(next() == "]", .Missing_Bracket, "']' missing in section array declaration") do return false
+    if err_if_not(next() == "]", .Missing_Bracket, "']' missing in section array declaration!") do return false
+    if err_if_not(next() == "]", .Missing_Bracket, "']' missing in section array declaration!") do return false
 
     return true
 }
@@ -149,7 +149,7 @@ validate_table :: proc() -> bool {
 
     skip() // '['
     validate_path()
-    return !err_if_not(next() == "]", .Missing_Bracket, "']' missing in section declaration")
+    return !err_if_not(next() == "]", .Missing_Bracket, "']' missing in section declaration!")
 }
 
 // key = value
@@ -157,7 +157,7 @@ validate_assign :: proc() -> bool {
     if peek(1) != "=" && peek(1) != "." do return false
 
     if !validate_path() do return false
-    if err_if_not(peek() == "=", .Expected_Equals, "Keys must be followed by '=' and then the value! Instead got: %s", peek()) do return false
+    if err_if_not(peek() == "=", .Expected_Equals, "Keys must be followed by '=' and then the value! Instead got: %s!", peek()) do return false
     skip() // '='
     return validate_expr()
 }
@@ -172,19 +172,19 @@ validate_path :: proc() -> bool {//{{{
 
     for peek(1) == "." {
         if peek(0) == "\n" || peek(2) == "\n" {
-            make_err(.Bad_New_Line, "paths.of.keys must be on the same line")
+            make_err(.Bad_New_Line, "paths.of.keys must be on the same line!")
             return false
         }
 
         if !validate_name() {
-            make_err(.Bad_Name, "key in path cannot have this name: '%s'", peek())
+            make_err(.Bad_Name, "key in path cannot have this name: '%s'!", peek())
             return false
         }
         skip()
     }
 
     if !validate_name() {
-        make_err(.Bad_Name, "key in path cannot have this name: '%s'", peek())
+        make_err(.Bad_Name, "key in path cannot have this name: '%s'!", peek())
         return false
     }
 
@@ -206,7 +206,7 @@ validate_string :: proc() -> bool {//{{{
         PATTERNS := [] string { "\"\"\"", "'''", "\"", "\'", }
         for p in PATTERNS {
             if starts_with(peek(), p) {
-                if err_if_not(ends_with(peek(), p), .Missing_Quote, "string '%s' is missing one or more quotes", peek()) do return false
+                if err_if_not(ends_with(peek(), p), .Missing_Quote, "string '%s' is missing one or more quotes!", peek()) do return false
             }
         }
         skip()
@@ -228,7 +228,7 @@ validate_bool :: proc() -> bool {  //{{{
     if !eq(peek(), "false") && !eq(peek(), "true") do return false
 
     defer skip()
-    return !err_if_not(peek() == "false" || peek() == "true", .Bad_Value, "booleans must be lowercase")
+    return !err_if_not(peek() == "false" || peek() == "true", .Bad_Value, "Booleans must be lowercase!")
 }//}}}
 
 validate_date :: proc() -> (ok: bool) {  //{{{
@@ -267,7 +267,7 @@ validate_date :: proc() -> (ok: bool) {  //{{{
     }
 
     validate_time :: proc(str: string) -> bool {
-        if err_if_not(is_proper_time(str), .Bad_Date, "The date: '%s' is not valid, please use rfc 3339 (e.g.: 1234-12-12, or 60:45:30+02:00)", peek()) do return false
+        if err_if_not(is_proper_time(str), .Bad_Date, "The date: '%s' is not valid, please use rfc 3339 (e.g.: 1234-12-12, or 60:45:30+02:00)!", peek()) do return false
 
         offset := str[8:] if len(str) > 8 else ""
 
@@ -278,7 +278,7 @@ validate_date :: proc() -> (ok: bool) {  //{{{
                     offset = peek(2)[i:]
                     break
                 }
-                if err_if_not(is_digit(r, 10) || r == 'Z' || r == 'z', .Bad_Date, "Bad millisecond count in the date.") do return false
+                if err_if_not(is_digit(r, 10) || r == 'Z' || r == 'z', .Bad_Date, "Bad millisecond count in the date!") do return false
             }
             skip(2)
         }
@@ -299,7 +299,7 @@ validate_date :: proc() -> (ok: bool) {  //{{{
 
     // Dates will necessarily have - as their 5th symbol: "0123-00-00"
     if len(peek()) > 4 && peek()[4] == '-' {
-        err_if_not(is_proper_date(peek()), .Bad_Date, "The date: '%s' is not valid, please use rfc 3339 (e.g.: 1234-12-12, or 60:45:30+02:00)", peek())
+        err_if_not(is_proper_date(peek()), .Bad_Date, "The date: '%s' is not valid, please use rfc 3339 (e.g.: 1234-12-12, or 60:45:30+02:00)!", peek())
 
         // time can be seperated either by { 't', 'T' or ' ' }, ' ' is split by tokenizer
         if len(peek()) > 11 && (peek()[10] == 'T' || peek()[10] == 't') {
@@ -328,7 +328,7 @@ validate_number :: proc() -> bool {//{{{
     if at(number, 0) == '+' || at(number, 0) == '-' do number = number[1:]
 
     if eq(number, "nan") || eq(number, "inf") {
-        err_if_not(number == "nan" || number == "inf", .Bad_Float, "NaN and Inf must be fully lowercase in TOML: `nan` and `inf`! (I don't know why). Your's is: '%s'", peek())
+        err_if_not(number == "nan" || number == "inf", .Bad_Float, "NaN and Inf must be fully lowercase in TOML: `nan` and `inf`! (I don't know why). Your's is: '%s'!", peek())
         skip()
         return true
     }
@@ -346,9 +346,9 @@ validate_number :: proc() -> bool {//{{{
     validate_underscores :: proc(r: rune, p: rune, is_last: bool) -> bool {
         if r != '_' do return true
         switch {
-        case p == '_' : make_err(.Bad_Integer, "Double underscore mid number")
-        case p == 0   : make_err(.Bad_Integer, "Underscore cannot be the first character in a number")
-        case is_last  : make_err(.Bad_Integer, "Underscore cannot be the last character in a number")
+        case p == '_' : make_err(.Bad_Integer, "Double underscore mid number!")
+        case p == 0   : make_err(.Bad_Integer, "Underscore cannot be the first character in a number!")
+        case is_last  : make_err(.Bad_Integer, "Underscore cannot be the last character in a number!")
         case: return true
         }
         return false
@@ -364,7 +364,7 @@ validate_number :: proc() -> bool {//{{{
             fraction, exp2 = split_by(peek(2), "eE")
 
             if exp1 != "" && exp2 != "" {
-                make_err(.Bad_Float, "A number cannot have 2 exponent parts! '1e5.7e6' is invalid")
+                make_err(.Bad_Float, "A number cannot have 2 exponent parts! '1e5.7e6' is invalid!")
                 return false
             }
         }
@@ -380,7 +380,7 @@ validate_number :: proc() -> bool {//{{{
         case 'o': base =  8; main = main[2:]
         case 'b': base =  2; main = main[2:]
         case  0 : // nothing
-        case: make_err(.Bad_Integer, "A number cannot start with '0'. Please use '0o1234' for octal")
+        case: make_err(.Bad_Integer, "A number cannot start with '0'. Please use '0o1234' for octal!")
         }
     }
 
@@ -389,7 +389,7 @@ validate_number :: proc() -> bool {//{{{
     prev = 0
     for r, i in main {
         if prev == 0 && !is_digit(r, base) do return false
-        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in number", r) do return false
+        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in number!", r) do return false
         if !validate_underscores(r, prev, i == len(main) - 1) do return false
         prev = r
     }
@@ -397,7 +397,7 @@ validate_number :: proc() -> bool {//{{{
     prev = 0
     for r, i in fraction {
         if prev == 0 && !is_digit(r, base) do return false
-        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in decimal part of number ", r) do return false
+        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in decimal part of number!", r) do return false
         if !validate_underscores(r, prev, i == len(fraction) - 1) do return false
         prev = r
     }
@@ -405,7 +405,7 @@ validate_number :: proc() -> bool {//{{{
     prev = 0
     for r, i in exponent {
         if prev == 0 && !is_digit(r, base) do return false
-        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in exponent part of number", r) do return false
+        if err_if_not(is_digit(r, base) || r == '_', .Bad_Integer, "Unexpected character: '%v' in exponent part of number!", r) do return false
         if !validate_underscores(r, prev, i == len(exponent) - 1) do return false
         prev = r
     }
@@ -423,21 +423,21 @@ validate_inline_list :: proc() -> bool { //{{{
         skip_newline()
         if peek() == "]" do break
 
-        if !validate_expr() do return false
+        if err_if_not(validate_expr(), .Unexpected_Token, "Unexpected token in inline list!") do return false
 
         skip_newline()
         if peek() == "]" do break
 
-        if err_if_not(peek() == ",", .Missing_Comma, "Comma is missing between elements") do return false
+        if err_if_not(peek() == ",", .Missing_Comma, "Missing comma or ']' in list!") do return false
         skip() // ','
         skip_newline()
         if peek() == "," {
-            make_err(.Double_Comma, "double comma found in an inline list.")
+            make_err(.Double_Comma, "double comma found in an inline list!")
             return false
         }
     }
 
-    return !err_if_not(next() == "]", .Missing_Bracket, "']' missing in inline array declaration")
+    return !err_if_not(next() == "]", .Missing_Bracket, "']' missing in inline array declaration!")
 }//}}}
 
 validate_inline_table :: proc() -> bool { //{{{
@@ -448,28 +448,28 @@ validate_inline_table :: proc() -> bool { //{{{
         skip_newline()
         if peek() == "}" do break
 
-        if !validate_assign() do return false
+        if err_if_not(validate_assign(), .Unexpected_Token, "Unexpected token in inline table!") do return false
 
         skip_newline()
         if peek() == "}" do break
 
-        if err_if_not(peek() == ",", .Missing_Comma, "Comma is missing between elements") do return false
-        skip() // ','  // you can have trailing commas in my inline tables, why not?
+        if err_if_not(peek() == ",", .Missing_Comma, "Missing comma or '}' in table!") do return false
+        skip() // ','
         skip_newline()
         if peek() == "," {
-            make_err(.Double_Comma, "double comma found in an inline list.")
+            make_err(.Double_Comma, "double comma found in an inline list!")
             return false
         }
     }
 
-    return !err_if_not(next() == "}", .Missing_Bracket, "'}' missing in inline table declaration")
+    return !err_if_not(next() == "}", .Missing_Bracket, "'}' missing in inline table declaration!")
 }//}}}
 
 @(private="file")
 make_err :: proc(type: ErrorType, more_fmt: string, more_args: ..any) {
     g.err.type = type
     context.allocator = g.aloc
-    b_reset(&g.err.more)
+    if len(g.err.more.buf) > 0 do return // b_reset(&g.err.more) 
     b_printf(&g.err.more, more_fmt, ..more_args)
 }
 

@@ -9,6 +9,10 @@ import "dates"
 import "core:testing"
 
 main :: proc() {
+    if any_of("-parse-example", ..os.args) {
+        parse_example_toml()
+    }
+
     run_integrated_test()
 }
 
@@ -25,6 +29,11 @@ memory_test :: proc(t: ^testing.T) {
     delete_error(&err)
 }
 
+parse_example_toml :: proc() {
+    table, err := parse_file("example.toml")
+    print_error(err)
+    print_table(table)
+}
 
 run_integrated_test :: proc() {
 

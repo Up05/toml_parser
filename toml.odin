@@ -113,6 +113,10 @@ get_panic :: proc($T: typeid, section: ^Table, path: ..string) -> T
 print_table :: proc(section: ^Table, level := 0) {
     log("{ ")
     i := 0
+    if section == nil { 
+        log("<nil>") 
+        return 
+    }
     for k, v in section {
         log(k, "= ")
         print_value(v, level)

@@ -51,7 +51,6 @@ skip=(
 	-skip 'invalid/float/trailing-exp-plus'
 	-skip 'invalid/inline-table/duplicate-key-03'
 	-skip 'invalid/inline-table/duplicate-key-04'
-	-skip 'invalid/inline-table/no-close-01'
 	-skip 'invalid/inline-table/overwrite-02'
 	-skip 'invalid/inline-table/overwrite-05'
 	-skip 'invalid/inline-table/overwrite-06'
