@@ -8,6 +8,7 @@ import "core:strconv"
 import "core:strings"
 import "dates"
 
+// An enum, may be used like: if unmarshal_error == .None { it worked! }
 Unmarshal_Error :: enum {
 	None,
 	Invalid_Data,
@@ -18,6 +19,8 @@ Unmarshal_Error :: enum {
 	Unsupported_Type,
 }
 
+// Unmarshal TOML text into the passed value. Usage: unmarshal_any(toml_text, &output_value) 
+// v must be a pointer value! However, it can be a pointer to anything (struct is most common).
 unmarshal_any :: proc(data: []byte, v: any, allocator := context.allocator) -> Unmarshal_Error {
 	v := v
 	if v == nil || v.id == nil {
@@ -53,10 +56,14 @@ unmarshal_any :: proc(data: []byte, v: any, allocator := context.allocator) -> U
 	return nil
 }
 
+// Unmarshal TOML text into the passed value. 
+// Usage: unmarshal_any(toml_text, &output_value) 
 unmarshal :: proc(data: []byte, ptr: ^$T, allocator := context.allocator) -> Unmarshal_Error {
 	return unmarshal_any(data, ptr, allocator)
 }
 
+// Unmarshal TOML text into the passed value. 
+// Usage: unmarshal_any(toml_text, &output_value) 
 unmarshal_string :: proc(
 	data: string,
 	ptr: ^$T,
@@ -494,9 +501,13 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 	return .Unsupported_Type
 }
 
+// Unmarshal parsed TOML into the passed value. 
+// Usage: unmarshal_any(&output_value, parse_file("file") or_else nil) 
 unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 	v := v
 	ti := reflect.type_info_base(type_info_of(v.id))
+
+    if table == nil { return .Invalid_Parameter }
 
 	#partial switch t in ti.variant {
 	case reflect.Type_Info_Struct:

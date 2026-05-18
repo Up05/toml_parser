@@ -11,6 +11,8 @@ import "dates"
 
 main :: proc() {
     if any_of("-parse-example", ..os.args) {
+        unmarshal_example_toml()
+        logln("========================")
         parse_example_toml()
         return
     }
@@ -133,6 +135,27 @@ pack_source_files :: proc() {
     err := os.write_entire_file(output_file, head.buf[:])
     fmt.assertf(err == nil, "Failed to write to the output file -- %s with error %v", output_file, err)
 
+}
+
+unmarshal_example_toml :: proc() {
+    value : struct {
+        integer  : int,
+        num      : f32,
+        infinity : f64,
+        mstr     : string `toml:"multiline_str"`,
+        a : struct { b: string },
+        c : struct { d: string },
+        // rest of values in example.toml
+        // are ignored by unmarshal_table
+    }
+
+    table, err1 := parse_file("example.toml")
+    err2 := unmarshal_table(value, nil)
+
+    print_error(err1)
+    assert(err2 == .None)
+
+    logln(value)
 }
 
 parse_example_toml :: proc() {
