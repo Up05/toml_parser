@@ -11,8 +11,9 @@ import "dates"
 
 main :: proc() {
     if any_of("-parse-example", ..os.args) {
+        logln("=========== UNMARSHALING =============")
         unmarshal_example_toml()
-        logln("========================")
+        logln("=========== NORMAL PARSING =============")
         parse_example_toml()
         return
     }
@@ -150,7 +151,9 @@ unmarshal_example_toml :: proc() {
     }
 
     table, err1 := parse_file("example.toml")
-    err2 := unmarshal_table(value, nil)
+    value_ptr := &value
+    value_ptr_ptr := &value_ptr
+    err2 := unmarshal_table(&value_ptr_ptr, table) // <-- btw, you should take 0 references of value, not 3.
 
     print_error(err1)
     assert(err2 == .None)

@@ -86,7 +86,8 @@ parse :: proc(data: string, original_file: string, allocator := context.allocato
 unmarshal :: proc(data: []byte, ptr: ^$T, allocator := context.allocator) -> Unmarshal_Error 
 
 // Unmarshal parsed TOML into the passed value. (Allows TOML errors to be printed)
-// Usage: unmarshal_any(&output_value, parse_file("file") or_else nil) 
+// Usage: unmarshal_any(output_value, parse_file("file") or_else nil) 
+// NOTE: you do not need to pass the value by pointer here (because any automatically takes its reference)
 unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error
 ```
 

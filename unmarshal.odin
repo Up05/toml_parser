@@ -502,7 +502,8 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 }
 
 // Unmarshal parsed TOML into the passed value. 
-// Usage: unmarshal_any(&output_value, parse_file("file") or_else nil) 
+// Usage: unmarshal_any(output_value, parse_file("file") or_else nil) 
+// NOTE: you do not need to pass the value by pointer here (because any automatically takes its reference)
 unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 	v := v
 	ti := reflect.type_info_base(type_info_of(v.id))
@@ -640,6 +641,10 @@ unmarshal_table :: proc(v: any, table: ^Table) -> Unmarshal_Error {
 				delete(key, table.allocator)
 			}
 		}
+
+    case reflect.Type_Info_Pointer:
+        v = reflect.deref(v)
+        return unmarshal_table(v, table)
 
 	case:
 		switch &val in v {
