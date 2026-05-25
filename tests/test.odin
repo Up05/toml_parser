@@ -195,6 +195,7 @@ unmarshal_lists_to_map :: proc(t: ^testing.T) {
 	slice = [1, 2, 3, 4]
 	arr = [1, 2, 3, 4]
 	dyn_arr = [1, 2, 3, 4]
+	fixed_dyn_arr = [1, 2, 3, 4]
 	enum_arr = [1, 2, 3, 4]
 	`
 
@@ -213,15 +214,25 @@ unmarshal_lists_to_map :: proc(t: ^testing.T) {
 		t,
 		toml.unmarshal_string(test_toml, &test_slice, context.temp_allocator) == .None,
 	)
+	check_list(t, test_slice["slice"])
 
 	test_arr: map[string][4]int
 	testing.expect(t, toml.unmarshal_string(test_toml, &test_arr, context.temp_allocator) == .None)
+	check_list(t, (&test_arr["arr"])[:])
 
 	test_dynarr: map[string][dynamic]int
 	testing.expect(
 		t,
 		toml.unmarshal_string(test_toml, &test_dynarr, context.temp_allocator) == .None,
 	)
+	check_list(t, test_dynarr["dyn_arr"][:])
+
+	test_fixed_dynarr: map[string][dynamic; 8]int
+	testing.expect(
+		t,
+		toml.unmarshal_string(test_toml, &test_fixed_dynarr, context.temp_allocator) == .None,
+	)
+	check_list(t, (&test_fixed_dynarr["fixed_dyn_arr"])[:])
 
 	Test_Enum :: enum {
 		One,
@@ -234,5 +245,5 @@ unmarshal_lists_to_map :: proc(t: ^testing.T) {
 		t,
 		toml.unmarshal_string(test_toml, &test_enumarr, context.temp_allocator) == .None,
 	)
+	check_list(t, slice.enumerated_array(&test_enumarr["enum_arr"]))
 }
-
