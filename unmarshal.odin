@@ -466,6 +466,16 @@ unmarshal_list :: proc(dest: any, list: ^List) -> Unmarshal_Error {
 		raw.allocator = context.allocator
 		return assign_list(raw.data, t.elem, list)
 
+	case reflect.Type_Info_Fixed_Capacity_Dynamic_Array:
+		if len(list) > t.capacity {
+			return .Unsupported_Type	
+		}
+		base_ptr := cast(uintptr)dest.data
+		len_ptr := base_ptr + t.len_offset
+		len_val := cast(^int)len_ptr
+		len_val^ = len(list)
+		return assign_list(rawptr(base_ptr), t.elem, list)
+
 	case reflect.Type_Info_Array:
 		// NOTE(bill): Allow lengths which are less than the dst array
 		if len(list) > t.count {
